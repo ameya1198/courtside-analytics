@@ -1,0 +1,60 @@
+version: 2
+
+models:
+  - name: dim_team
+    description: One row per current NBA team.
+    columns:
+      - name: team_id
+        description: NBA's ID for the team.
+        data_tests:
+          - unique
+          - not_null
+
+  - name: dim_player
+    description: One row per player who appears in the game logs, with their latest name.
+    columns:
+      - name: player_id
+        description: NBA's ID for the player.
+        data_tests:
+          - unique
+          - not_null
+
+  - name: fct_player_game
+    description: One row per player per game, with team details.
+    columns:
+      - name: game_id
+        description: NBA's ID for the game.
+        data_tests:
+          - not_null
+      - name: player_id
+        description: NBA's ID for the player.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_player')
+                field: player_id
+      - name: team_id
+        description: NBA's ID for the player's team in this game.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_team')
+                field: team_id
+
+  - name: fct_team_game
+    description: One row per team per game, with team details.
+    columns:
+      - name: game_id
+        description: NBA's ID for the game.
+        data_tests:
+          - not_null
+      - name: team_id
+        description: NBA's ID for the team.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_team')
+                field: team_id

@@ -1,0 +1,68 @@
+version: 2
+
+models:
+  - name: stg_nba__teams
+    description: One row per NBA team, with clean column names.
+    columns:
+      - name: team_id
+        description: NBA's ID for the team.
+        data_tests:
+          - unique
+          - not_null
+
+  - name: stg_nba__players
+    description: One row per player in NBA history, with clean column names.
+    columns:
+      - name: player_id
+        description: NBA's ID for the player.
+        data_tests:
+          - unique
+          - not_null
+
+  - name: stg_nba__player_game_logs
+    description: One row per player per game, regular season and playoffs.
+    columns:
+      - name: game_id
+        description: NBA's ID for the game.
+        data_tests:
+          - not_null
+      - name: player_id
+        description: NBA's ID for the player.
+        data_tests:
+          - not_null
+      - name: team_id
+        description: NBA's ID for the player's team in this game.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_nba__teams')
+                field: team_id
+      - name: season_type
+        description: Regular Season or Playoffs.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Regular Season', 'Playoffs']
+
+  - name: stg_nba__team_game_logs
+    description: One row per team per game, regular season and playoffs.
+    columns:
+      - name: game_id
+        description: NBA's ID for the game.
+        data_tests:
+          - not_null
+      - name: team_id
+        description: NBA's ID for the team.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_nba__teams')
+                field: team_id
+      - name: season_type
+        description: Regular Season or Playoffs.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Regular Season', 'Playoffs']
