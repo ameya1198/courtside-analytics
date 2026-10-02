@@ -27,3 +27,6 @@ data/raw/
 # OS / editor
 .DS_Store
 .vscode/
+
+# dbt seeds are small reference files we want in git
+!dbt/seeds/*.csv
