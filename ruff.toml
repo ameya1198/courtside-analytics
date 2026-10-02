@@ -1,0 +1,5 @@
+# Keep linting simple: basic errors and unused imports.
+line-length = 100
+
+[lint]
+select = ["E", "F"]

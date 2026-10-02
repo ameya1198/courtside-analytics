@@ -29,16 +29,18 @@ docs/        Architecture, page specs, data dictionary
 
 ## Setup
 
-1. Create a Supabase project, then run `sql/001_schemas.sql` in the SQL editor.
+1. Create a Supabase project, then run `sql/001_schemas.sql` and `sql/003_raw_tables.sql` in the SQL editor.
 2. `cp .env.example .env` and fill in the connection details.
 3. `python -m venv .venv && source .venv/bin/activate`
 4. `pip install -r requirements.txt`
 5. `make check-db` to confirm the connection works.
+6. `make load-reference`, then `python -m ingestion.load --season 2025` as a first test.
+7. `make backfill` to load every season (run once).
 
 ## Status
 
 - [x] Phase 0: repo and warehouse setup
-- [ ] Phase 1: ingestion and history backfill
+- [ ] Phase 1: ingestion and history backfill (loaders written, first real run pending)
 - [ ] Phase 2: dbt staging and core models
 - [ ] Phase 3: intermediate models, macros, incremental loads
 - [ ] Phase 4: analysis marts

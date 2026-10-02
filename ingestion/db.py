@@ -15,7 +15,7 @@ def get_engine() -> Engine:
         username=os.environ["SUPABASE_DB_USER"],
         password=os.environ["SUPABASE_DB_PASSWORD"],
         host=os.environ["SUPABASE_DB_HOST"],
-        port=int(os.environ.get("SUPABASE_DB_PORT", 5432)),
+        port=int(os.environ.get("SUPABASE_DB_PORT", "5432")),
         database=os.environ.get("SUPABASE_DB_NAME", "postgres"),
     )
     return create_engine(url, pool_pre_ping=True)
