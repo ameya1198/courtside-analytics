@@ -40,8 +40,8 @@ docs/        Architecture, page specs, data dictionary
 ## Status
 
 - [x] Phase 0: repo and warehouse setup
-- [ ] Phase 1: ingestion and history backfill (loaders written, first real run pending)
-- [ ] Phase 2: dbt staging and core models
+- [x] Phase 1: ingestion and history backfill (11 seasons loaded)
+- [ ] Phase 2: dbt staging and core models (project scaffolded, models in progress)
 - [ ] Phase 3: intermediate models, macros, incremental loads
 - [ ] Phase 4: analysis marts
 - [ ] Phase 5: scheduled refresh

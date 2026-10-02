@@ -1,0 +1,28 @@
+version: 2
+
+# Sources tell dbt which tables already exist in the database (our loader made them).
+# Models read from them with {{ source('raw', 'table_name') }}.
+sources:
+  - name: raw
+    schema: raw
+    description: Tables loaded straight from the NBA API by the Python loader.
+    config:
+      loaded_at_field: loaded_at
+      # Freshness check. Run with: dbt source freshness
+      # In the offseason no new rows arrive, so expect a warning until games start.
+      freshness:
+        warn_after: {count: 2, period: day}
+        error_after: {count: 7, period: day}
+    tables:
+      - name: teams
+        description: The 30 current NBA teams.
+        config:
+          freshness: null   # a static list, no freshness check
+      - name: players
+        description: Every player in NBA history.
+        config:
+          freshness: null
+      - name: player_game_logs
+        description: One row per player per game, regular season and playoffs.
+      - name: team_game_logs
+        description: One row per team per game, regular season and playoffs.

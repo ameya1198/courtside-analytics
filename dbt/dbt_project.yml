@@ -1,0 +1,24 @@
+# dbt project settings. dbt reads this file first.
+name: courtside
+version: "1.0.0"
+config-version: 2
+
+# Which connection (from profiles.yml) this project uses.
+profile: courtside
+
+model-paths: ["models"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  courtside:
+    # Staging models are views: cheap, always up to date, no storage used.
+    staging:
+      +materialized: view
+      +schema: staging
+    # Marts are real tables: fast for the dashboard to read.
+    marts:
+      +materialized: table
+      +schema: marts

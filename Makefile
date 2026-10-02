@@ -23,4 +23,4 @@ backfill:
 	python -m ingestion.load --backfill
 
 dbt-build:
-	cd dbt && dbt build
+	cd dbt && set -a && . ../.env && set +a && dbt build
