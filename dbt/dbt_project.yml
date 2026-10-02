@@ -12,12 +12,21 @@ seed-paths: ["seeds"]
 macro-paths: ["macros"]
 clean-targets: ["target", "dbt_packages"]
 
+# Seeds are small CSV files. dbt loads each one as a table.
+seeds:
+  courtside:
+    +schema: staging
+
 models:
   courtside:
     # Staging models are views: cheap, always up to date, no storage used.
     staging:
       +materialized: view
       +schema: staging
+    # Intermediate models do the in-between work (like rest days). Views, own schema.
+    intermediate:
+      +materialized: view
+      +schema: intermediate
     # Marts are real tables: fast for the dashboard to read.
     marts:
       +materialized: table

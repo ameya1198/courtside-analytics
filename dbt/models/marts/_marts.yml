@@ -2,12 +2,16 @@ version: 2
 
 models:
   - name: dim_team
-    description: One row per current NBA team.
+    description: One row per current NBA team, with conference and division.
     columns:
       - name: team_id
         description: NBA's ID for the team.
         data_tests:
           - unique
+          - not_null
+      - name: conference
+        description: East or West.
+        data_tests:
           - not_null
 
   - name: dim_player
@@ -18,9 +22,32 @@ models:
         data_tests:
           - unique
           - not_null
+      - name: first_season
+        description: First season the player appears in the data (start year, 2025 means 2025-26).
+        data_tests:
+          - not_null
+      - name: last_season
+        description: Last season the player appears in the data.
+        data_tests:
+          - not_null
+
+  - name: dim_date
+    description: One row per calendar day, with the NBA season each day belongs to.
+    columns:
+      - name: date_day
+        description: The calendar day.
+        data_tests:
+          - unique
+          - not_null
 
   - name: fct_player_game
-    description: One row per player per game, with team details.
+    description: >
+      One row per player per game, with team details, rest days and efficiency stats.
+      Rows with 0 minutes are kept. Filter on did_play for real appearances.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [game_id, player_id]
     columns:
       - name: game_id
         description: NBA's ID for the game.
@@ -42,9 +69,37 @@ models:
               arguments:
                 to: ref('dim_team')
                 field: team_id
+      - name: did_play
+        description: True if the player has minutes or any box score stat in this game.
+        data_tests:
+          - not_null
+      - name: minutes_played
+        description: Minutes on court. The most in one game is 65 (overtime).
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 70
+      - name: ts_pct
+        description: True shooting percentage. Blank when the player took no shots.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1.5
+      - name: days_rest
+        description: Full days off since the team's last game. 0 is a back-to-back.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
 
   - name: fct_team_game
-    description: One row per team per game, with team details.
+    description: One row per team per game, with team details and rest days.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [game_id, team_id]
     columns:
       - name: game_id
         description: NBA's ID for the game.
@@ -58,3 +113,9 @@ models:
               arguments:
                 to: ref('dim_team')
                 field: team_id
+      - name: days_rest
+        description: Full days off since the team's last game. 0 is a back-to-back.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0

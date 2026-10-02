@@ -1,0 +1,4 @@
+packages:
+  # dbt_utils is a library of ready-made tests and helpers. Install with: dbt deps
+  - package: dbt-labs/dbt_utils
+    version: [">=1.3.0", "<2.0.0"]

@@ -1,0 +1,29 @@
+version: 2
+
+seeds:
+  - name: nba_team_divisions
+    description: Which conference and division each team plays in. A small CSV that dbt loads as a table.
+    columns:
+      - name: team_abbreviation
+        description: Three-letter team code, for example OKC.
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_nba__teams')
+                field: team_abbreviation
+      - name: conference
+        description: East or West.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['East', 'West']
+      - name: division
+        description: One of the six divisions.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Atlantic', 'Central', 'Southeast', 'Northwest', 'Pacific', 'Southwest']

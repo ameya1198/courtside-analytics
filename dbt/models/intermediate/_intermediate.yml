@@ -1,0 +1,25 @@
+version: 2
+
+models:
+  - name: int_team_game_rest
+    description: >
+      Rest days for each team before each game, plus the opponent's rest.
+      Note that the 2019-20 season has one very long gap (the 2020 pause), so cap
+      days_rest (for example at 7) before averaging it.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [game_id, team_id]
+    columns:
+      - name: game_id
+        data_tests:
+          - not_null
+      - name: team_id
+        data_tests:
+          - not_null
+      - name: days_rest
+        description: Full days off since the team's last game. 0 is a back-to-back.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
