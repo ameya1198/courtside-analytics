@@ -1,0 +1,60 @@
+name: Nightly refresh
+
+# Runs every night during the NBA season (October to June).
+# Order: load new games, load new shots, then rebuild the dbt models and run their tests.
+on:
+  schedule:
+    # 09:00 UTC = 3-4 am US Central, after the last West Coast game has finished.
+    - cron: "0 9 * 10-12,1-6 *"
+  workflow_dispatch:   # lets you press "Run workflow" in GitHub to test it by hand
+
+# Never run two refreshes at once (two loads could clash on the same rows).
+concurrency:
+  group: nightly-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # Database login comes from repository secrets, never from the code.
+      SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
+      SUPABASE_DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
+      SUPABASE_DB_NAME: ${{ secrets.SUPABASE_DB_NAME }}
+      SUPABASE_DB_USER: ${{ secrets.SUPABASE_DB_USER }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install packages
+        run: pip install -r requirements.txt
+
+      - name: Check the database connection
+        run: python -m ingestion.db --check
+
+      - name: Load new game logs
+        run: python -m ingestion.load --current
+
+      - name: Load new shots
+        run: python -m ingestion.load --shots
+
+      - name: Install dbt packages
+        working-directory: dbt
+        run: dbt deps
+
+      # Warns if the raw data is stale. Does not stop the run (offseason is always stale).
+      - name: Check data freshness
+        working-directory: dbt
+        run: dbt source freshness
+        continue-on-error: true
+
+      # Builds every model and runs every test. A failing test fails the whole run.
+      - name: Build dbt models and run tests
+        working-directory: dbt
+        run: dbt build

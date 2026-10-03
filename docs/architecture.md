@@ -19,7 +19,7 @@ GitHub Actions: nightly load > dbt source freshness > dbt build > dashboard rebu
 
 - Raw tables are never edited. Fixes happen in staging.
 - Incremental loads keyed on game date. Backfill and daily runs use the same code path.
-- Free tier budget is 500 MB. Raw shot data is kept for the current and previous season only. Older seasons are rolled up by player, season and zone.
+- Free tier budget is 500 MB. Raw shot data is kept for the last three seasons (SHOTS_START_SEASON, 2024 onward), about 90 MB. `fct_shots` is a view, so shot charts add no storage. Zone summaries are small tables.
 - Every dbt model has tests. A failing test blocks the dashboard rebuild.
 
 ## Audience

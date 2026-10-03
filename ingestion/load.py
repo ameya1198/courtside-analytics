@@ -5,6 +5,8 @@ Usage:
     python -m ingestion.load --season 2025          # one season (2025 = 2025-26)
     python -m ingestion.load --current              # this season only (the nightly job)
     python -m ingestion.load --backfill             # every season since BACKFILL_START_SEASON
+    python -m ingestion.load --shots                # new shots this season (the nightly job)
+    python -m ingestion.load --shots-backfill       # all shots since SHOTS_START_SEASON
 
 Every load is safe to re-run. It deletes that season's rows first, then inserts
 fresh ones, all in one transaction, so you never end up with duplicates.
@@ -12,7 +14,7 @@ fresh ones, all in one transaction, so you never end up with duplicates.
 import argparse
 import os
 import time
-from datetime import date
+from datetime import date, timedelta
 
 import pandas as pd
 from sqlalchemy import text
@@ -38,11 +40,21 @@ TEAM_LOG_COLUMNS = (
     + STAT_COLUMNS + ["video_available"]
 )
 
+# Shot columns we keep. Names and a few extras (HTM, VTM) are dropped to save space.
+SHOT_COLUMNS = [
+    "game_id", "game_event_id", "player_id", "team_id", "period", "minutes_remaining",
+    "seconds_remaining", "event_type", "action_type", "shot_type", "shot_zone_basic",
+    "shot_zone_area", "shot_zone_range", "shot_distance", "loc_x", "loc_y",
+    "shot_made_flag", "game_date",
+]
+
 # These columns are whole numbers in the database. Pandas reads them as decimals,
 # so we convert them before inserting.
 WHOLE_NUMBER_COLUMNS = [
     "player_id", "team_id", "fgm", "fga", "fg3m", "fg3a", "ftm", "fta", "oreb", "dreb",
     "reb", "ast", "stl", "blk", "tov", "pf", "pts", "video_available",
+    "game_event_id", "period", "minutes_remaining", "seconds_remaining", "shot_distance",
+    "loc_x", "loc_y", "shot_made_flag",
 ]
 
 # Which table, which columns, and which API level ("P" player, "T" team) per source.
@@ -58,10 +70,10 @@ def current_season() -> int:
     return today.year if today.month >= 10 else today.year - 1
 
 
-def prepare_game_logs(
+def prepare_rows(
     df: pd.DataFrame, columns: list, season: int, season_type: str
 ) -> pd.DataFrame:
-    """Turn the API response into rows that match the raw table."""
+    """Turn an API response (game logs or shots) into rows that match the raw table."""
     df = df.copy()
     df.columns = [name.lower() for name in df.columns]  # SEASON_ID -> season_id
     df = df[columns]  # keep only the columns we store
@@ -108,7 +120,7 @@ def load_game_logs(engine, source: str, season: int, season_type: str) -> int:
             print(f"{source} {season} {season_type}: no rows from the API, skipped")
             return 0
 
-        df = prepare_game_logs(raw, config["columns"], season, season_type)
+        df = prepare_rows(raw, config["columns"], season, season_type)
         with engine.begin() as conn:  # one transaction: both steps work, or neither does
             conn.execute(
                 text(f"delete from raw.{source} where season = :s and season_type = :t"),
@@ -122,6 +134,78 @@ def load_game_logs(engine, source: str, season: int, season_type: str) -> int:
     except Exception as error:
         finish_run(engine, run_id, "failed", error=str(error)[:500])
         raise
+
+
+def season_dates(season: int) -> tuple[date, date]:
+    """Rough first and last day of a season: October 1 to July 15 of the next year."""
+    return date(season, 10, 1), date(season + 1, 7, 15)
+
+
+def date_windows(start: date, end: date, days: int = 30):
+    """Split a date range into chunks, so each shot request stays small."""
+    while start <= end:
+        window_end = min(start + timedelta(days=days - 1), end)
+        yield start, window_end
+        start = window_end + timedelta(days=1)
+
+
+def load_shots_window(engine, season: int, season_type: str, date_from: date, date_to: date) -> int:
+    """Load the shots between two dates. Safe to re-run: it deletes that date range first."""
+    run_id = start_run(engine, f"shots:{season_type}", season)
+    try:
+        raw = nba_client.get_shots(season, season_type, date_from, date_to)
+        if raw.empty:
+            finish_run(engine, run_id, "success", rows=0)
+            print(f"shots {season} {season_type} {date_from} to {date_to}: no shots, skipped")
+            return 0
+
+        df = prepare_rows(raw, SHOT_COLUMNS, season, season_type)
+        # A shot is identified by game + event number. Drop repeats just in case.
+        df = df.drop_duplicates(subset=["game_id", "game_event_id"])
+        with engine.begin() as conn:
+            conn.execute(
+                text("delete from raw.shots where season = :s and season_type = :t "
+                     "and game_date between :d1 and :d2"),
+                {"s": season, "t": season_type, "d1": date_from, "d2": date_to},
+            )
+            df.to_sql("shots", conn, schema="raw", if_exists="append", index=False,
+                      chunksize=2000, method="multi")
+        finish_run(engine, run_id, "success", rows=len(df))
+        print(f"shots {season} {season_type} {date_from} to {date_to}: loaded {len(df)} rows")
+        return len(df)
+    except Exception as error:
+        finish_run(engine, run_id, "failed", error=str(error)[:500])
+        raise
+
+
+def load_shots_range(engine, season: int, start: date, end: date) -> None:
+    """Load shots for both season types between two dates, one window at a time."""
+    for window_start, window_end in date_windows(start, end):
+        for season_type in SEASON_TYPES:
+            load_shots_window(engine, season, season_type, window_start, window_end)
+            time.sleep(2)  # be polite to the NBA servers
+
+
+def load_shots_season(engine, season: int) -> None:
+    """A whole season of shots (used for the one-time backfill)."""
+    first, last = season_dates(season)
+    load_shots_range(engine, season, first, min(last, date.today()))
+
+
+def load_shots_recent(engine, season: int) -> None:
+    """The nightly job: only reload shots from 3 days before our newest shot.
+
+    The 3 day overlap picks up late stat corrections without re-downloading the season.
+    """
+    with engine.connect() as conn:
+        newest = conn.execute(
+            text("select max(game_date) from raw.shots where season = :s"), {"s": season}
+        ).scalar_one()
+    first, last = season_dates(season)
+    start = newest - timedelta(days=3) if newest else first
+    end = min(last, date.today())
+    if start <= end:
+        load_shots_range(engine, season, start, end)
 
 
 def load_reference(engine) -> None:
@@ -160,6 +244,8 @@ def main() -> None:
     parser.add_argument("--season", type=int, help="start year, e.g. 2025 for 2025-26")
     parser.add_argument("--current", action="store_true", help="load the current season")
     parser.add_argument("--backfill", action="store_true", help="load all seasons")
+    parser.add_argument("--shots", action="store_true", help="load new shots for this season")
+    parser.add_argument("--shots-backfill", action="store_true", help="load all shots")
     args = parser.parse_args()
 
     engine = get_engine()
@@ -173,6 +259,13 @@ def main() -> None:
         first = int(os.environ.get("BACKFILL_START_SEASON", "2015"))
         for season in range(first, current_season() + 1):
             load_season(engine, season)
+    if args.shots:
+        load_shots_recent(engine, current_season())
+    if args.shots_backfill:
+        # Shots are big, so we keep fewer seasons than game logs (free tier is 500 MB)
+        first = int(os.environ.get("SHOTS_START_SEASON", "2024"))
+        for season in range(first, current_season() + 1):
+            load_shots_season(engine, season)
 
 
 if __name__ == "__main__":

@@ -117,3 +117,62 @@ models:
               arguments:
                 min_value: 80
                 max_value: 120
+
+  - name: fct_shots
+    description: >
+      One row per shot attempt with player and team names. A view, so it uses no extra storage.
+      Shot charts plot loc_x and loc_y.
+    columns:
+      - name: player_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_player')
+                field: player_id
+              config:
+                severity: warn   # a missing player should warn, not stop the nightly build
+      - name: team_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_team')
+                field: team_id
+              config:
+                severity: warn
+
+  - name: mart_shot_zones
+    description: >
+      One row per player, season and court zone: attempts, makes, accuracy, share of the
+      player's shots, and the league average accuracy from the same zone.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [player_id, season, season_type, shot_zone_basic]
+    columns:
+      - name: fga
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+      - name: fg_pct
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: league_fg_pct
+        description: League accuracy from the same zone, season and season type.
+
+  - name: mart_team_shot_zones
+    description: One row per team, season and court zone, with attempts, accuracy and share of the team's shots.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [team_id, season, season_type, shot_zone_basic]
+    columns:
+      - name: share_of_shots
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1

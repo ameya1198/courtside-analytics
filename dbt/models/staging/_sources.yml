@@ -26,3 +26,5 @@ sources:
         description: One row per player per game, regular season and playoffs.
       - name: team_game_logs
         description: One row per team per game, regular season and playoffs.
+      - name: shots
+        description: One row per shot attempt (made or missed), with court position and zone.

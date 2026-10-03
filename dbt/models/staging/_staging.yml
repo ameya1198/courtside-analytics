@@ -66,3 +66,39 @@ models:
           - accepted_values:
               arguments:
                 values: ['Regular Season', 'Playoffs']
+
+  - name: stg_nba__shots
+    description: One row per shot attempt (made or missed), with clean column names.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [game_id, game_event_id]
+    columns:
+      - name: game_id
+        data_tests:
+          - not_null
+      - name: player_id
+        data_tests:
+          - not_null
+      - name: is_made
+        description: True when the shot went in.
+        data_tests:
+          - not_null
+      - name: shot_zone_basic
+        description: Broad court zone, such as Restricted Area, Mid-Range or Above the Break 3.
+        data_tests:
+          - not_null
+      - name: shot_distance
+        description: Distance from the basket in feet.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 100
+      - name: loc_x
+        description: Sideways court position in tenths of a foot. 0 is straight in front of the hoop.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: -250
+                max_value: 250

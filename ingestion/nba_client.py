@@ -2,7 +2,7 @@
 import time
 
 import pandas as pd
-from nba_api.stats.endpoints import leaguegamelog
+from nba_api.stats.endpoints import leaguegamelog, shotchartdetail
 from nba_api.stats.static import players, teams
 
 
@@ -41,4 +41,31 @@ def get_game_logs(start_year: int, season_type: str, level: str) -> pd.DataFrame
         except Exception as error:  # noqa: BLE001
             last_error = error
             time.sleep(5 * (attempt + 1))  # wait a little longer each time
+    raise last_error
+
+
+def get_shots(start_year: int, season_type: str, date_from, date_to) -> pd.DataFrame:
+    """Every shot attempt (made or missed) between two dates, for the whole league.
+
+    Passing team_id=0 and player_id=0 means "everyone". We ask for small date
+    ranges because a full season of shots is a very large response.
+    The dates are Python date objects. The API wants them as MM/DD/YYYY text.
+    """
+    last_error = None
+    for attempt in range(3):
+        try:
+            endpoint = shotchartdetail.ShotChartDetail(
+                team_id=0,
+                player_id=0,
+                context_measure_simple="FGA",  # FGA = all attempts, not only makes
+                season_nullable=season_label(start_year),
+                season_type_all_star=season_type,
+                date_from_nullable=date_from.strftime("%m/%d/%Y"),
+                date_to_nullable=date_to.strftime("%m/%d/%Y"),
+                timeout=120,
+            )
+            return endpoint.get_data_frames()[0]  # the first table is the shot list
+        except Exception as error:  # noqa: BLE001
+            last_error = error
+            time.sleep(5 * (attempt + 1))
     raise last_error
