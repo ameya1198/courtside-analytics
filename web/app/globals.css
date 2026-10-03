@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+:root {
+  --ink: #0b0d12;
+  --muted: #444b58;
+  --line: #d9dce1;
+  --soft: #eef0f3;
+  --paper: #ffffff;
+  /* Team-driven values. Pages override these with teamTheme(). */
+  --hero: #1f4fd1;
+  --hero-ink: #ffffff;
+  --accent: #1f4fd1;
+  --accent-ink: #ffffff;
+  --warn: #d9480f;
+  --warn-ink: #ffffff;
+  --panel: #0b0d12;
+  --panel-ink: #ffffff;
+  --panel-muted: #a7aebb;
+  --panel-grid: #272b35;
+  --panel-dot: #6c7384;
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-soft: var(--soft);
+  --color-paper: var(--paper);
+  --color-hero: var(--hero);
+  --color-hero-ink: var(--hero-ink);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-warn: var(--warn);
+  --color-warn-ink: var(--warn-ink);
+  --color-panel: var(--panel);
+  --color-panel-ink: var(--panel-ink);
+  --color-panel-muted: var(--panel-muted);
+  --color-panel-grid: var(--panel-grid);
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-display: "Big Shoulders Display", "Arial Narrow", sans-serif;
+}
+
+html {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.display {
+  font-family: var(--font-display);
+  font-weight: 900;
+  line-height: 0.92;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Chart panels: Recharts text and grid follow the panel colours. */
+.panel {
+  background: var(--panel);
+  color: var(--panel-ink);
+  --chart-muted: var(--panel-muted);
+  --chart-grid: var(--panel-grid);
+  --chart-cursor: color-mix(in srgb, var(--panel-ink) 8%, transparent);
+}

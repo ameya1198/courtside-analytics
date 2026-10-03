@@ -1,0 +1,124 @@
+import type { Metadata } from "next";
+import { Empty, Heading, Section, Wrap } from "@/components/blocks";
+import { Diverging, FactorPairs, ZoneRows } from "@/components/charts/html";
+import { ParamSelect } from "@/components/param-select";
+import { pageData } from "@/lib/db";
+import { dec3, one, parseSeason, seasonOptions, shortDate, signed } from "@/lib/format";
+import { FACTOR_META, cap, zoneName } from "@/lib/insights";
+import { onColor, teamColor, teamTheme } from "@/lib/teams";
+import type { MatchupData, TeamRow } from "@/lib/types";
+
+export const metadata: Metadata = { title: "Matchup Scout" };
+export const revalidate = 3600;
+
+function Side({ t, dark }: { t: TeamRow; dark?: boolean }) {
+  const bg = teamColor(t.abbr);
+  const ink = onColor(bg);
+  return (
+    <div className="flex flex-col gap-3 px-4 pb-10 pt-8 md:px-12" style={{ background: dark ? "var(--ink)" : bg, color: dark ? "#fff" : ink }}>
+      <span className="display text-[clamp(96px,12vw,150px)]" style={dark ? { color: bg === "#000000" ? "#C4CED4" : bg } : undefined}>{t.abbr}</span>
+      <span className="display text-[28px] font-extrabold tracking-[0.04em]">{t.name} · {t.w}-{t.l}</span>
+      <div className="grid grid-cols-3 gap-3 border-t-[3px] border-current pt-3">
+        {[["Net", signed(t.net)], ["Offense", t.ortg.toFixed(1)], ["Defense", t.drtg.toFixed(1)]].map(([l, v]) => (
+          <div key={l} className="flex flex-col"><span className="label">{l}</span><span className="display text-[clamp(40px,4.5vw,60px)]">{v}</span></div>
+        ))}
+      </div>
+      <span className="font-mono text-[13px]">PACE {t.pace.toFixed(1)}</span>
+    </div>
+  );
+}
+
+export default async function MatchupScout({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const sp = await searchParams;
+  const d = await pageData<MatchupData>("matchup", [parseSeason(sp.season), one(sp.a), one(sp.b)]);
+  const { a, b } = d;
+  if (!a || !b) return <Wrap className="py-20"><Empty>Pick two teams with games this season.</Empty></Wrap>;
+
+  const opts = d.teams.map((t) => ({ value: t.abbr, label: t.abbr }));
+  const aWins = d.games.filter((g) => g.a_pts > g.b_pts).length;
+  const bWins = d.games.length - aWins;
+  const better = a.net >= b.net ? a : b;
+  const leader = aWins >= bWins ? a : b;
+  const h2hTitle = !d.games.length
+    ? `${a.abbr} and ${b.abbr} have not met yet this season.`
+    : `${leader.abbr} won ${Math.max(aWins, bWins)} of the ${d.games.length} games between them${leader.abbr !== better.abbr && aWins !== bWins ? ", despite the worse ratings" : ""}.`;
+
+  const fa = d.factors?.[a.abbr], fb = d.factors?.[b.abbr];
+  let factorTitle = "";
+  if (fa && fb) {
+    const gaps = FACTOR_META.map((m) => {
+      const diff = (fa[m.key] - fb[m.key]) * (m.lowerIsBetter ? -1 : 1);
+      return { m, diff, size: Math.abs(fa[m.key] - fb[m.key]) / ((fa[m.key] + fb[m.key]) / 2) };
+    }).sort((x, y) => y.size - x.size);
+    const g = gaps[0];
+    const edge = g.diff >= 0 ? a.abbr : b.abbr;
+    factorTitle = `${cap(g.m.short)} decides this matchup: ${edge} holds the edge, ${dec3(Math.max(fa[g.m.key], fb[g.m.key]))} against ${dec3(Math.min(fa[g.m.key], fb[g.m.key]))}.`;
+  }
+
+  const za = d.zones.filter((z) => z.abbr === a.abbr);
+  const zb = d.zones.filter((z) => z.abbr === b.abbr);
+  const zbMap = new Map(zb.map((z) => [z.zone, z]));
+  const zoneGap = za
+    .filter((z) => zbMap.has(z.zone))
+    .map((z) => ({ zone: z.zone, diff: zbMap.get(z.zone)!.share - z.share }))
+    .sort((x, y) => y.diff - x.diff)[0];
+
+  return (
+    <div style={teamTheme(a.abbr)}>
+      <section>
+        <div className="flex flex-wrap items-center justify-center gap-3 bg-ink px-4 py-3 text-white">
+          <span className="label">Matchup Scout · {d.seasonLabel}</span>
+          <ParamSelect name="a" label="Team A" value={a.abbr} options={opts} />
+          <ParamSelect name="b" label="Team B" value={b.abbr} options={opts} />
+          <ParamSelect name="season" label="Season" value={String(d.season)} options={seasonOptions(d.seasons)} />
+        </div>
+        <div className="grid md:grid-cols-2">
+          <Side t={a} />
+          <Side t={b} dark />
+        </div>
+      </section>
+
+      <Wrap>
+        <Section className="flex flex-col gap-6">
+          <Heading title={h2hTitle} caption={`${a.abbr} margin in every ${d.seasonLabel} game against ${b.abbr}, regular season and playoffs.`} />
+          {d.games.length ? (
+            <Diverging
+              labelWidth={110}
+              noteWidth={150}
+              leftLabel={`${b.abbr} won by`}
+              rightLabel={`${a.abbr} won by`}
+              max={Math.max(15, ...d.games.map((g) => Math.abs(g.a_pts - g.b_pts)))}
+              rows={d.games.map((g) => {
+                const m = g.a_pts - g.b_pts;
+                return {
+                  key: g.game_date, label: shortDate(g.game_date), value: m, valueText: `${g.a_pts}-${g.b_pts}`,
+                  note: `${g.phase === "Playoffs" ? "Playoffs" : "Regular"} · ${g.a_home ? "home" : "away"}`,
+                  tone: m >= 0 ? "accent" : "ink",
+                };
+              })}
+            />
+          ) : null}
+        </Section>
+
+        <Section className="grid gap-12 lg:grid-cols-2">
+          <div className="flex flex-col gap-5">
+            {fa && fb ? (
+              <>
+                <Heading size="md" title={factorTitle} caption="Offense, four factors, regular season." />
+                <FactorPairs a={a.abbr} b={b.abbr} fa={fa} fb={fb} />
+              </>
+            ) : null}
+          </div>
+          <div className="flex flex-col gap-5">
+            <Heading
+              size="md"
+              title={zoneGap && zoneGap.diff > 0.01 ? `${b.abbr} takes more ${zoneName(zoneGap.zone).toLowerCase()} than ${a.abbr}. Defend that zone.` : `${a.abbr} and ${b.abbr} shoot from similar spots.`}
+              caption={`${a.abbr} shot share and make rate by zone, with ${b.abbr} for comparison.`}
+            />
+            <ZoneRows zones={za} compare={zb} abbr={a.abbr} compareLabel={b.abbr} />
+          </div>
+        </Section>
+      </Wrap>
+    </div>
+  );
+}

@@ -2,7 +2,7 @@
 
 A live NBA decision dashboard for front-office questions: who is outperforming their contract, how rest changes results, and how teams are trending.
 
-Built as an end-to-end analytics project: Python ingestion, Supabase Postgres warehouse, dbt models and tests, GitHub Actions scheduling, and an Evidence dashboard.
+Built as an end-to-end analytics project: Python ingestion, Supabase Postgres warehouse, dbt models and tests, GitHub Actions scheduling, and a Next.js dashboard on Vercel.
 
 > Unofficial project. Not affiliated with or endorsed by the NBA.
 
@@ -14,14 +14,14 @@ Built as an end-to-end analytics project: Python ingestion, Supabase Postgres wa
 | Warehouse | Supabase Postgres (`raw` > `staging` > `marts`) |
 | Transform and test | dbt Core (`dbt-postgres`) |
 | Orchestration | GitHub Actions |
-| Dashboard | Evidence |
+| Dashboard | Next.js 15, shadcn/ui charts, deployed on Vercel |
 
 ## Repo layout
 
 ```
 ingestion/   Python loaders into the raw schema
 dbt/         dbt project (staging, intermediate, marts, tests)
-dashboard/   Evidence app
+web/         Next.js dashboard (see web/README.md)
 sql/         One-time warehouse setup (schemas, log tables)
 docs/        Architecture, page specs, data dictionary
 .github/     CI and scheduled workflows

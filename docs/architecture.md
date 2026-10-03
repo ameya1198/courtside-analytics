@@ -10,7 +10,7 @@ ingestion (Python)  -->  Supabase Postgres
                           marts    (dbt tables: facts, dimensions, analysis)
                                 |
                                 v
-                          Evidence dashboard (Vercel)
+                          Next.js dashboard (Vercel)
 
 GitHub Actions: nightly load > dbt source freshness > dbt build > dashboard rebuild
 ```
