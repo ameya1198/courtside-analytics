@@ -1,0 +1,119 @@
+version: 2
+
+models:
+  - name: mart_player_form
+    description: >
+      One row per player per game (10+ minutes only) with rolling averages.
+      Use is_latest_game to get each player's current form.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [game_id, player_id]
+    columns:
+      - name: player_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_player')
+                field: player_id
+      - name: games_played
+        description: Games this player has played so far this season (10+ minutes).
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+      - name: pts_last_5
+        description: Average points over the last 5 games.
+      - name: pts_form_delta
+        description: Last 5 games points minus season average. Positive means hot, negative means cold.
+      - name: ts_pct_last_10
+        description: True shooting percentage over the last 10 games.
+      - name: is_latest_game
+        description: True on a player's most recent game of that season and season type.
+        data_tests:
+          - not_null
+
+  - name: mart_rest_impact
+    description: >
+      Regular season results grouped by rest days, opponent rest, opponent strength and home or away.
+      Add up games and wins to regroup, then recompute win percent.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [season, team_rest_days, opponent_rest_days, opponent_strength, is_home]
+    columns:
+      - name: team_rest_days
+        description: Days off before the game, capped at 3 (3 means 3 or more).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3]
+                quote: false
+      - name: opponent_rest_days
+        description: The opponent's days off before the game, capped at 3.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3]
+                quote: false
+      - name: opponent_strength
+        description: Strong (win % 0.55+), Average, Weak (0.45 or less), or Unknown (under 10 games played).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Strong', 'Average', 'Weak', 'Unknown']
+      - name: games
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+      - name: win_pct
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1
+
+  - name: mart_team_ratings
+    description: >
+      One row per team per season and season type: record, scoring, offensive and defensive
+      rating (points per 100 possessions), net rating, pace and rank.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [team_id, season, season_type]
+    columns:
+      - name: team_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_team')
+                field: team_id
+      - name: games
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+      - name: off_rating
+        description: Points scored per 100 possessions.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 70
+                max_value: 140
+      - name: def_rating
+        description: Points allowed per 100 possessions.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 70
+                max_value: 140
+      - name: pace
+        description: Possessions per 48 minutes.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 80
+                max_value: 120
