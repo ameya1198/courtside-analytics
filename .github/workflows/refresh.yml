@@ -3,9 +3,11 @@ name: Nightly refresh
 # Runs every night during the NBA season (October to June).
 # Order: load new games, load new shots, then rebuild the dbt models and run their tests.
 on:
-  schedule:
-    # 09:00 UTC = 3-4 am US Central, after the last West Coast game has finished.
-    - cron: "0 9 * 10-12,1-6 *"
+  # PAUSED: the NBA site timed out from GitHub's servers on the first test run.
+  # Fix the timeout (see docs/nightly-refresh.md), then remove the # signs below.
+  # schedule:
+  #   # 09:00 UTC = 3-4 am US Central, after the last West Coast game has finished.
+  #   - cron: "0 9 * 10-12,1-6 *"
   workflow_dispatch:   # lets you press "Run workflow" in GitHub to test it by hand
 
 # Never run two refreshes at once (two loads could clash on the same rows).
