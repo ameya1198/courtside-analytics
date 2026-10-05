@@ -7,10 +7,11 @@ with games as (
 ),
 
 appearances as (
-    -- One row per team per game, so each team's previous game can be found
-    select game_id, season, game_date, home_team_id as team_id from games
+    -- One row per team per game, so each team's previous game can be found.
+    -- Knockout games whose teams are not decided yet use team id 0 on both sides: leave them out.
+    select game_id, season, game_date, home_team_id as team_id from games where home_team_id <> 0
     union all
-    select game_id, season, game_date, away_team_id as team_id from games
+    select game_id, season, game_date, away_team_id as team_id from games where away_team_id <> 0
 ),
 
 rest as (

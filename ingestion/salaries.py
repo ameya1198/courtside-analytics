@@ -27,7 +27,17 @@ NBA_TEAMS = [
 ]
 
 # Basketball-Reference name (after normalize_name) -> NBA player id, for names that differ between the sites.
-NAME_OVERRIDES: dict[str, int] = {}
+NAME_OVERRIDES: dict[str, int] = {
+    "aleksandar vezenkov": 1628426,  # Sasha Vezenkov
+    "dariq miller whitehead": 1641727,  # Dariq Whitehead
+    "egor dmin": 1642856,  # Egor Dëmin (Basketball-Reference spells it with a Cyrillic ё)
+    "gregory jackson": 1641713,  # GG Jackson
+    "hugo gonzalez pena": 1642864,  # Hugo González
+    "matthew hurt": 1630562,  # Matt Hurt
+    "mohamed bamba": 1628964,  # Mo Bamba
+    "nikola djurisic": 1642365,  # Nikola Đurišić
+    "ron holland": 1641842,  # Ronald Holland II
+}
 
 SUFFIXES = {"jr", "sr", "ii", "iii", "iv", "v"}
 
@@ -64,6 +74,8 @@ def fetch(url: str) -> str:
             time.sleep(60 * (attempt + 1))
             continue
         response.raise_for_status()
+        # The pages are UTF-8 but the header names no charset, so requests guesses Latin-1 and garbles accents
+        response.encoding = "utf-8"
         time.sleep(PAUSE_SECONDS)
         return response.text
     raise RuntimeError(f"Basketball-Reference kept refusing {url}")

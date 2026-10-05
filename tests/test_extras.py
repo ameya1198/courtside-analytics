@@ -1,5 +1,6 @@
 """Offline tests for the clutch, bio, schedule and salary loaders."""
 import pandas as pd
+import requests
 
 from ingestion import salaries
 from ingestion.load import BIO_COLUMNS, TEAM_CLUTCH_COLUMNS, prepare_rows, prepare_schedule
@@ -61,6 +62,20 @@ def test_names_match_across_accents_and_suffixes():
     assert salaries.match_player("Nikola Jokic", index) == 1
     assert salaries.match_player("John Smith", index) is None   # two active players share it
     assert salaries.match_player("Old Player", index) == 4
+    # Same player, different spelling on the two sites
+    assert salaries.match_player("Mohamed Bamba", {}) == 1628964
+    assert salaries.match_player("Egor Dёmin", {}) == 1642856
+
+
+def test_fetch_reads_pages_as_utf8(monkeypatch):
+    # No charset in the header: requests alone would decode this as Latin-1 ("JokiÄ")
+    response = requests.Response()
+    response.status_code = 200
+    response.headers["Content-Type"] = "text/html"
+    response._content = "<td>Nikola Jokić</td>".encode()
+    monkeypatch.setattr(salaries.requests, "get", lambda *a, **k: response)
+    monkeypatch.setattr(salaries.time, "sleep", lambda s: None)
+    assert "Jokić" in salaries.fetch("https://example.test/page.html")
 
 
 def test_bbref_team_codes_and_urls():
