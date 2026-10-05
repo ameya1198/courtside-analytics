@@ -6,8 +6,8 @@ import { Hero, KpiRow } from "@/components/hero";
 import { ParamSelect } from "@/components/param-select";
 import { RemoteImage } from "@/components/remote-image";
 import { pageData } from "@/lib/db";
-import { dec3, one, ordinal, parseSeason, seasonOptions, shortDate } from "@/lib/format";
-import { formHeadline, percentileHeadline } from "@/lib/insights";
+import { dec3, one, ordinal, parseSeason, seasonOptions, shortDate, signed } from "@/lib/format";
+import { formHeadline, money, percentileHeadline } from "@/lib/insights";
 import { headshotUrl, teamTheme } from "@/lib/teams";
 import type { PlayerData } from "@/lib/types";
 
@@ -32,7 +32,7 @@ export default async function PlayerProfile({ searchParams }: { searchParams: Pr
   return (
     <div style={teamTheme(p.team)}>
       <Hero
-        eyebrow={`Player Profile · ${p.team} · ${p.gp} games · ${d.seasonLabel}`}
+        eyebrow={["Player Profile", p.team, d.value?.age ? `Age ${Math.floor(d.value.age)}` : null, d.value?.salary ? `${money(d.value.salary)} salary` : null, `${p.gp} games`, d.seasonLabel].filter(Boolean).join(" · ")}
         title={p.name}
         controls={
           <>
@@ -70,6 +70,13 @@ export default async function PlayerProfile({ searchParams }: { searchParams: Pr
                   ]}
                 />
                 <span className="text-[13px] text-muted">The black line marks the middle of the pack.</span>
+                {d.clutch ? (
+                  <div className="mt-4 grid grid-cols-3 gap-3 border-t-[3px] border-ink pt-4">
+                    <div className="flex flex-col"><span className="label">Clutch points</span><span className="display text-[44px]">{d.clutch.pts}</span><span className="font-mono text-[12px] text-muted">{ordinal(d.clutch.pts_rank)} in the league</span></div>
+                    <div className="flex flex-col"><span className="label">Clutch TS%</span><span className="display text-[44px]">{d.clutch.ts === null ? "-" : dec3(d.clutch.ts)}</span><span className="font-mono text-[12px] text-muted">{d.clutch.games} clutch games</span></div>
+                    <div className="flex flex-col"><span className="label">Clutch +/-</span><span className="display text-[44px]">{signed(d.clutch.plus_minus, 0)}</span><span className="font-mono text-[12px] text-muted">{d.clutch.minutes.toFixed(0)} minutes</span></div>
+                  </div>
+                ) : null}
               </>
             ) : (
               <Empty>{p.name} has not played enough games or minutes to be ranked yet.</Empty>

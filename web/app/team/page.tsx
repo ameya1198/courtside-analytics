@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { Empty, Heading, Placeholder, Section, Wrap } from "@/components/blocks";
+import { Empty, Heading, Section, Wrap } from "@/components/blocks";
 import { FactorTable, ZoneRows } from "@/components/charts/html";
 import { RollingMarginChart } from "@/components/charts/recharts";
 import { Hero, KpiRow } from "@/components/hero";
 import { ParamSelect } from "@/components/param-select";
 import { pageData } from "@/lib/db";
 import { ordinal, one, parseSeason, seasonOptions, signed } from "@/lib/format";
-import { factorsHeadline, rolling, rollingHeadline, splits, splitsHeadline, zonesHeadline } from "@/lib/insights";
+import { clutchHeadline, factorsHeadline, rolling, rollingHeadline, splits, splitsHeadline, zonesHeadline } from "@/lib/insights";
 import { logoUrl, teamTheme } from "@/lib/teams";
 import type { TeamData } from "@/lib/types";
 
@@ -97,8 +97,32 @@ export default async function TeamReport({ searchParams }: { searchParams: Promi
             {d.zones.length ? <ZoneRows zones={d.zones} compare={d.leagueZones} abbr={t.abbr} compareLabel="League" /> : <Empty>No shot data for this season.</Empty>}
           </div>
           <div className="flex flex-col gap-5">
-            <Heading size="md" title="Clutch record" caption="Results in close games, last five minutes." />
-            <Placeholder title="Clutch win-loss and net rating" need="Needs the clutch splits from nba_api. This panel fills in once that loader is built." />
+            {d.clutch ? (
+              <>
+                <Heading size="md" title={clutchHeadline(t.abbr, d.clutch)} caption="Last 5 minutes of a game with the score within 5 points." />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex min-h-[140px] flex-col justify-between gap-1 bg-ink p-4 text-white">
+                    <span className="label">Clutch record</span>
+                    <span className="display text-[52px]">{d.clutch.w}-{d.clutch.l}</span>
+                    <span className="font-mono text-[13px]">{ordinal(d.clutch.win_rank)} of {d.clutch.teams} by win rate</span>
+                  </div>
+                  <div className={`flex min-h-[140px] flex-col justify-between gap-1 p-4 ${d.clutch.net_rank <= 10 ? "bg-accent text-accent-ink" : d.clutch.net_rank > d.clutch.teams - 10 ? "bg-warn text-warn-ink" : "bg-soft text-ink"}`}>
+                    <span className="label">Clutch net rating</span>
+                    <span className="display text-[52px]">{d.clutch.net === null ? "-" : signed(d.clutch.net)}</span>
+                    <span className="font-mono text-[13px]">{ordinal(d.clutch.net_rank)} of {d.clutch.teams}</span>
+                  </div>
+                  <div className="col-span-2 flex items-baseline justify-between border-t-[3px] border-ink pt-3">
+                    <span className="label">Games that reached clutch time</span>
+                    <span className="display text-[36px]">{d.clutch.games} of {t.gp ?? t.w + t.l}</span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <Heading size="md" title="Clutch record" caption="Last 5 minutes of a game with the score within 5 points." />
+                <Empty>No clutch games yet this season.</Empty>
+              </>
+            )}
           </div>
         </Section>
       </Wrap>

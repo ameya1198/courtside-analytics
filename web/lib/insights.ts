@@ -1,7 +1,7 @@
 // Headlines are written from the data on every request, so they change as games are played.
 // Each one is a single sentence that points at something a decision maker can act on.
 import { ordinal, pct, signed } from "./format";
-import type { Factors, PlayerData, RestData, TeamData, TeamGame, Zone } from "./types";
+import type { Clutch, Factors, PlayerData, RestData, TeamData, TeamGame, Zone } from "./types";
 
 const ZONE_NAMES: Record<string, string> = {
   "Above the Break 3": "Above-the-break threes",
@@ -132,3 +132,13 @@ export function restHeadlines(d: RestData) {
 export function cap(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
+
+export function clutchHeadline(abbr: string, c: Clutch) {
+  const record = `${c.w}-${c.l}`;
+  if (c.games < 5) return `${abbr} has played only ${c.games} clutch games. Too few to judge yet.`;
+  if (c.net_rank <= 5) return `Close games are an edge: ${record} in clutch time, ${ordinal(c.net_rank)}-best net rating.`;
+  if (c.net_rank > c.teams - 5) return `Close games are costing wins: ${record} in clutch time, ${ordinal(c.net_rank)} of ${c.teams} on net rating. Review late-game sets.`;
+  return `${record} in clutch time, ${ordinal(c.net_rank)} of ${c.teams} on net rating. No late-game problem to fix.`;
+}
+
+export const money = (n: number) => (n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${Math.round(n / 1e3)}K`);

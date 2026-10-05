@@ -75,6 +75,13 @@ select json_build_object(
   'player', (select row_to_json(l) from season_line l, pick where l.player_id = pick.player_id),
   'percentiles', (select row_to_json(p) from pct p, pick where p.player_id = pick.player_id),
   'lastGames', (select coalesce(json_agg(g order by g.game_date), '[]'::json) from last_games g),
+  'value', (select json_build_object('age', v.age::float, 'salary', v.salary, 'fantasy_ppg', v.fantasy_ppg::float,
+      'per_pt', v.dollars_per_fantasy_pt::float)
+    from marts.mart_player_value v, s, pick where v.season = s.season and v.player_id = pick.player_id),
+  'clutch', (select json_build_object('games', c.games, 'pts', c.pts, 'ts', c.ts_pct::float, 'plus_minus', c.plus_minus::float,
+      'pts_rank', c.pts_rank, 'minutes', c.minutes::float)
+    from marts.mart_player_clutch c, s, pick
+    where c.season = s.season and c.season_type = 'Regular Season' and c.player_id = pick.player_id),
   'shots', json_build_object(
     'total', (select count(*) from shots),
     'rimFga', (select count(*) from shots where shot_distance <= 4),

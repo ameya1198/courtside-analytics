@@ -3,7 +3,7 @@ import { Empty, Heading, Section, Wrap } from "@/components/blocks";
 import { Diverging, FactorPairs, ZoneRows } from "@/components/charts/html";
 import { ParamSelect } from "@/components/param-select";
 import { pageData } from "@/lib/db";
-import { dec3, one, parseSeason, seasonOptions, shortDate, signed } from "@/lib/format";
+import { dec3, one, ordinal, parseSeason, seasonOptions, shortDate, signed } from "@/lib/format";
 import { FACTOR_META, cap, zoneName } from "@/lib/insights";
 import { onColor, teamColor, teamTheme } from "@/lib/teams";
 import type { MatchupData, TeamRow } from "@/lib/types";
@@ -11,7 +11,7 @@ import type { MatchupData, TeamRow } from "@/lib/types";
 export const metadata: Metadata = { title: "Matchup Scout" };
 export const revalidate = 3600;
 
-function Side({ t, dark }: { t: TeamRow; dark?: boolean }) {
+function Side({ t, dark, clutch }: { t: TeamRow; dark?: boolean; clutch?: { w: number; l: number; net: number | null; net_rank: number } }) {
   const bg = teamColor(t.abbr);
   const ink = onColor(bg);
   return (
@@ -23,7 +23,10 @@ function Side({ t, dark }: { t: TeamRow; dark?: boolean }) {
           <div key={l} className="flex flex-col"><span className="label">{l}</span><span className="display text-[clamp(40px,4.5vw,60px)]">{v}</span></div>
         ))}
       </div>
-      <span className="font-mono text-[13px]">PACE {t.pace.toFixed(1)}</span>
+      <span className="font-mono text-[13px]">
+        PACE {t.pace.toFixed(1)}
+        {clutch ? ` · CLUTCH ${clutch.w}-${clutch.l}, NET ${clutch.net === null ? "-" : signed(clutch.net)} (${ordinal(clutch.net_rank)})` : ""}
+      </span>
     </div>
   );
 }
@@ -73,8 +76,8 @@ export default async function MatchupScout({ searchParams }: { searchParams: Pro
           <ParamSelect name="season" label="Season" value={String(d.season)} options={seasonOptions(d.seasons)} />
         </div>
         <div className="grid md:grid-cols-2">
-          <Side t={a} />
-          <Side t={b} dark />
+          <Side t={a} clutch={d.clutch?.[a.abbr]} />
+          <Side t={b} dark clutch={d.clutch?.[b.abbr]} />
         </div>
       </section>
 

@@ -52,5 +52,8 @@ select json_build_object(
   'b', (select row_to_json(r) from ratings r, pick where r.abbr = pick.b),
   'factors', (select json_object_agg(abbr, json_build_object('efg', efg, 'tov', tov, 'orb', orb, 'ftr', ftr)) from ff),
   'games', (select coalesce(json_agg(h order by h.game_date), '[]'::json) from h2h h),
-  'zones', (select coalesce(json_agg(z), '[]'::json) from zones z)
+  'zones', (select coalesce(json_agg(z), '[]'::json) from zones z),
+  'clutch', (select json_object_agg(c.team_abbreviation, json_build_object('w', c.wins, 'l', c.losses, 'net', c.net_rating::float, 'net_rank', c.net_rating_rank))
+    from marts.mart_team_clutch c, s, pick
+    where c.season = s.season and c.season_type = 'Regular Season' and c.team_abbreviation in (pick.a, pick.b))
 ) as data

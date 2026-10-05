@@ -78,5 +78,11 @@ select json_build_object(
   'leagueFactors', (select row_to_json(l) from league_ff l),
   'games', (select coalesce(json_agg(g order by g.game_date), '[]'::json) from games g),
   'zones', (select coalesce(json_agg(z order by z.share desc), '[]'::json) from zones z),
-  'leagueZones', (select coalesce(json_agg(lz), '[]'::json) from league_zones lz)
+  'leagueZones', (select coalesce(json_agg(lz), '[]'::json) from league_zones lz),
+  'clutch', (select json_build_object(
+      'games', c.games, 'w', c.wins, 'l', c.losses, 'win_pct', c.win_pct::float, 'net', c.net_rating::float,
+      'net_rank', c.net_rating_rank, 'win_rank', c.win_pct_rank, 'plus_minus', c.plus_minus::float,
+      'teams', (select count(*) from marts.mart_team_clutch x where x.season = c.season and x.season_type = c.season_type))
+    from marts.mart_team_clutch c, s, pick
+    where c.season = s.season and c.season_type = 'Regular Season' and c.team_abbreviation = pick.abbr)
 ) as data

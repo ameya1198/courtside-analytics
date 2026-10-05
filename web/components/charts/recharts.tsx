@@ -126,3 +126,60 @@ export function RestBucketsChart({ data }: { data: { label: string; win: number;
     </ChartContainer>
   );
 }
+
+/** Salary against production, split into four corners by the medians. */
+export function SalaryQuadrantChart({
+  points, medianSalary, medianProduction, highlight,
+}: {
+  points: { id: number; name: string; team: string; salaryM: number; fppg: number }[];
+  medianSalary: number; medianProduction: number; highlight: number[];
+}) {
+  const config = { fppg: { label: "Fantasy points per game", color: "var(--panel-dot)" } } satisfies ChartConfig;
+  const hot = new Set(highlight);
+  const rest = points.filter((p) => !hot.has(p.id));
+  const marked = points.filter((p) => hot.has(p.id));
+  const xMax = Math.ceil(Math.max(...points.map((p) => p.salaryM)) / 10) * 10;
+  const yMax = Math.ceil(Math.max(...points.map((p) => p.fppg)) / 10) * 10;
+  return (
+    <ChartContainer config={config} className="aspect-auto h-[460px] w-full">
+      <ScatterChart margin={{ top: 24, right: 24, left: 0, bottom: 20 }}>
+        <CartesianGrid stroke="var(--panel-grid)" />
+        <XAxis type="number" dataKey="salaryM" {...axis} domain={[0, xMax]} tickFormatter={(v) => `$${v}M`}
+          label={{ value: "SALARY", position: "insideBottom", offset: -14, fill: "var(--panel-muted)", fontFamily: "var(--font-mono)", fontSize: 11 }} />
+        <YAxis type="number" dataKey="fppg" {...axis} width={44} domain={[0, yMax]}
+          label={{ value: "FANTASY PTS / GAME", angle: -90, position: "insideLeft", offset: 12, fill: "var(--panel-muted)", fontFamily: "var(--font-mono)", fontSize: 11 }} />
+        <ZAxis range={[36, 36]} />
+        <ReferenceLine x={medianSalary} stroke="var(--panel-muted)" strokeDasharray="4 4" />
+        <ReferenceLine y={medianProduction} stroke="var(--panel-muted)" strokeDasharray="4 4" />
+        <ChartTooltip
+          cursor={false}
+          content={<ChartTooltipContent hideIndicator labelFormatter={(_, p) => `${p?.[0]?.payload?.name} · ${p?.[0]?.payload?.team}`}
+            formatter={(_, __, item) => `$${item.payload.salaryM.toFixed(1)}M · ${item.payload.fppg} fantasy pts a game`} />}
+        />
+        <Scatter data={rest} fill="var(--panel-dot)" fillOpacity={0.8} isAnimationActive={false} />
+        <Scatter data={marked} fill="var(--accent)" stroke="var(--panel-ink)" strokeWidth={2} isAnimationActive={false}>
+          <LabelList dataKey="name" position="right" offset={10} className="fill-[var(--panel-ink)] font-mono text-[11px]" />
+        </Scatter>
+      </ScatterChart>
+    </ChartContainer>
+  );
+}
+
+/** Average production by age across every season we hold. */
+export function AgeCurveChart({ data, peak }: { data: { age: number; fppg: number; players: number }[]; peak: number }) {
+  const config = { fppg: { label: "Fantasy points per game", color: "var(--panel-ink)" } } satisfies ChartConfig;
+  return (
+    <ChartContainer config={config} className="aspect-auto h-[300px] w-full">
+      <BarChart data={data} margin={{ top: 20, right: 8, left: 8, bottom: 0 }}>
+        <XAxis dataKey="age" {...axis} interval={0} tickMargin={8} />
+        <ChartTooltip cursor={false} content={<ChartTooltipContent hideIndicator labelFormatter={(_, p) => `Age ${p?.[0]?.payload?.age}`}
+          formatter={(_, __, item) => `${item.payload.fppg} fantasy pts a game · ${item.payload.players} player-seasons`} />} />
+        <Bar dataKey="fppg" isAnimationActive={false}>
+          {data.map((d) => (
+            <Cell key={d.age} fill={d.age === peak ? "var(--accent)" : "var(--panel-ink)"} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ChartContainer>
+  );
+}
