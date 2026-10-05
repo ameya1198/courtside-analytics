@@ -137,7 +137,8 @@ export function SalaryQuadrantChart({
   const config = { fppg: { label: "Fantasy points per game", color: "var(--panel-dot)" } } satisfies ChartConfig;
   const hot = new Set(highlight);
   const rest = points.filter((p) => !hot.has(p.id));
-  const marked = points.filter((p) => hot.has(p.id));
+  // Keep the caller's order, so the first highlighted player gets the label.
+  const marked = highlight.map((id) => points.find((p) => p.id === id)).filter((p): p is NonNullable<typeof p> => Boolean(p));
   const xMax = Math.ceil(Math.max(...points.map((p) => p.salaryM)) / 10) * 10;
   const yMax = Math.ceil(Math.max(...points.map((p) => p.fppg)) / 10) * 10;
   return (
@@ -157,8 +158,9 @@ export function SalaryQuadrantChart({
             formatter={(_, __, item) => `$${item.payload.salaryM.toFixed(1)}M · ${item.payload.fppg} fantasy pts a game`} />}
         />
         <Scatter data={rest} fill="var(--panel-dot)" fillOpacity={0.8} isAnimationActive={false} />
-        <Scatter data={marked} fill="var(--accent)" stroke="var(--panel-ink)" strokeWidth={2} isAnimationActive={false}>
-          <LabelList dataKey="name" position="right" offset={10} className="fill-[var(--panel-ink)] font-mono text-[11px]" />
+        <Scatter data={marked.slice(1)} fill="var(--accent)" stroke="var(--panel-ink)" strokeWidth={2} isAnimationActive={false} />
+        <Scatter data={marked.slice(0, 1)} fill="var(--accent)" stroke="var(--panel-ink)" strokeWidth={2} isAnimationActive={false}>
+          <LabelList dataKey="name" position="top" offset={12} className="fill-[var(--panel-ink)] font-mono text-[12px]" />
         </Scatter>
       </ScatterChart>
     </ChartContainer>

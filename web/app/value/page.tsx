@@ -75,13 +75,13 @@ export default async function PlayerValue({ searchParams }: { searchParams: Prom
         <Section className="flex flex-col gap-6">
           <Heading
             title={`${topLeft} players produce above the median on below-median pay. Target them in trades.`}
-            caption={`Salary against NBA fantasy points per game (points, rebounds, assists, steals, blocks, minus turnovers). Dashed lines are the medians: ${money(medS)} and ${medP.toFixed(1)} points. Top left is the best value.`}
+            caption={`Salary against NBA fantasy points per game (points, rebounds, assists, steals, blocks, minus turnovers). Dashed lines are the medians: ${money(medS)} and ${medP.toFixed(1)} points. Top left is the best value. The five best bargains are highlighted.`}
           />
           <div className="panel px-2 pb-2 pt-4">
             <SalaryQuadrantChart
               medianSalary={medS / 1e6}
               medianProduction={medP}
-              highlight={[...d.bargains.slice(0, 3), ...d.worst.slice(0, 3)].map((r) => r.player_id)}
+              highlight={d.bargains.map((r) => r.player_id)}
               points={d.players.map((p) => ({ id: p[0], name: p[1], team: p[2], salaryM: p[4] / 1e6, fppg: p[5] }))}
             />
           </div>
@@ -101,8 +101,12 @@ export default async function PlayerValue({ searchParams }: { searchParams: Prom
         {peak ? (
           <Section className="flex flex-col gap-6">
             <Heading
-              title={`Production peaks at ${peak.age}${dropAge ? ` and is down 10% by ${dropAge.age}. Price long deals past ${dropAge.age - 1} with care.` : "."}`}
-              caption="Average fantasy points per game by age, qualified players, every season we hold. Ages with fewer than 20 player-seasons are left out."
+              title={
+                dropAge
+                  ? `Production peaks at ${peak.age} and is down 10% by ${dropAge.age}. Price long deals past ${dropAge.age - 1} with care.`
+                  : `Production peaks at ${peak.age}, but players who keep a starter's minutes into their 30s hold their level. Pay for the role, not the birthday.`
+              }
+              caption="Average fantasy points per game by age, qualified players (20+ minutes a game), every season we hold. This counts only players who kept a big role, so older ages show the survivors. Ages with fewer than 20 player-seasons are left out."
             />
             <div className="panel px-4 pb-4 pt-4 md:px-7">
               <AgeCurveChart peak={peak.age} data={curve.map((a) => ({ age: a.age, fppg: a.fantasy_ppg, players: a.players }))} />
