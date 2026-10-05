@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Empty, Heading, Section, Wrap } from "@/components/blocks";
+import { ChartCard } from "@/components/chart-card";
 import { AgeCurveChart, SalaryQuadrantChart } from "@/components/charts/recharts";
 import { Hero } from "@/components/hero";
 import { ParamSelect } from "@/components/param-select";
@@ -103,18 +104,20 @@ export default async function PlayerValue({ searchParams }: { searchParams: Prom
         </Section>
 
         {peak ? (
-          <Section className="flex flex-col gap-6">
-            <Heading
+          <Section>
+            <ChartCard
               title={
                 dropAge
                   ? `Production peaks at ${peak.age} and is down 10% by ${dropAge.age}. Price long deals past ${dropAge.age - 1} with care.`
                   : `Production peaks at ${peak.age}, but players who keep a starter's minutes into their 30s hold their level. Pay for the role, not the birthday.`
               }
-              caption="Average fantasy points per game by age, qualified players (20+ minutes a game), every season we hold. This counts only players who kept a big role, so older ages show the survivors. Ages with fewer than 20 player-seasons are left out."
-            />
-            <div className="panel px-4 pb-4 pt-4 md:px-7">
+              description="Average fantasy points per game by age, qualified players, every season we hold"
+              trend={`Peak at ${peak.age}: ${peak.fantasy_ppg.toFixed(1)} fantasy points a game`}
+              direction="up"
+              note="Counts only players who kept 20+ minutes a game, so older ages show the survivors. Ages with fewer than 20 player-seasons are left out."
+            >
               <AgeCurveChart peak={peak.age} data={curve.map((a) => ({ age: a.age, fppg: a.fantasy_ppg, players: a.players }))} />
-            </div>
+            </ChartCard>
           </Section>
         ) : null}
 

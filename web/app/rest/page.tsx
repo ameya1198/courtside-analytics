@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Empty, Heading, Section, Wrap } from "@/components/blocks";
+import { ChartCard } from "@/components/chart-card";
 import { Diverging, MonthHeatmap } from "@/components/charts/html";
 import { RestBucketsChart } from "@/components/charts/recharts";
 import { Hero } from "@/components/hero";
@@ -59,12 +60,14 @@ export default async function RestSchedule({ searchParams }: { searchParams: Pro
       />
 
       <Wrap>
-        <Section className="flex flex-col gap-6">
-          <Heading
+        <Section>
+          <ChartCard
             title={b2b && oneDay ? `${mine.name} win ${pct(b2b.win_pct)} on the second night and ${pct(oneDay.win_pct)} with one day of rest.` : `How rest changes ${mine.name} results.`}
-            caption={`Win rate by days of rest, against an opponent with at least one day off, ${gapSeasons}. Hover a bar for the league win rate.`}
-          />
-          <div className="panel px-4 pb-4 pt-4 md:px-7">
+            description="Win rate by days of rest, against an opponent with at least one day off"
+            trend={b2b ? `Back-to-backs ${b2b.margin < 0 ? "cost" : "add"} ${Math.abs(b2b.margin).toFixed(1)} points a game` : undefined}
+            direction={b2b && b2b.margin >= 0 ? "up" : "down"}
+            note={`${gapSeasons}. Hover a bar for the league win rate.`}
+          >
             <RestBucketsChart
               data={d.buckets.map((b) => ({
                 label: b.rest === 0 ? "Back-to-back" : b.rest === 1 ? "1 day of rest" : b.rest === 2 ? "2 days" : "3+ days",
@@ -72,7 +75,7 @@ export default async function RestSchedule({ searchParams }: { searchParams: Pro
                 league: b.league_win_pct === undefined ? undefined : Math.round(b.league_win_pct * 1000) / 10,
               }))}
             />
-          </div>
+          </ChartCard>
         </Section>
 
         <Section className="grid items-start gap-12 lg:grid-cols-[1.25fr_1fr]">

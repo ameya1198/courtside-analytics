@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Empty, Heading, Section, Wrap } from "@/components/blocks";
+import { ChartCard } from "@/components/chart-card";
 import { PercentileBars, ShotHeatmap } from "@/components/charts/html";
 import { GameBarsChart, VolumeEfficiencyChart } from "@/components/charts/recharts";
 import { Hero, KpiRow } from "@/components/hero";
@@ -22,7 +23,7 @@ export default async function PlayerProfile({ searchParams }: { searchParams: Pr
   const mine = await myTeam();
   let d = await pageData<PlayerData>("player", [season, Number.isFinite(id) && id > 0 ? id : null]);
   // Only players who appeared for the chosen team that season (traded players count for both teams)
-  const onTeam = (r: PoolRow) => !mine || r[7].includes(mine.abbr);
+  const onTeam = (r: PoolRow) => !mine || (r[7] ?? [r[2]]).includes(mine.abbr);
   if (mine && !d.pool?.some((r) => r[0] === d.player?.player_id && onTeam(r))) {
     // The pool is sorted ranked players first, then by points: open the team's best ranked player
     const top = d.pool?.find(onTeam);
@@ -34,12 +35,14 @@ export default async function PlayerProfile({ searchParams }: { searchParams: Pr
 
   // The dropdown lists every player who appeared for the chosen team that season
   const pool = (d.pool ?? []).filter(onTeam);
+  const last5 = d.lastGames.slice(-5);
+  const recent5 = last5.length ? last5.reduce((a, g) => a + g.pts, 0) / last5.length : null;
   const pc = d.percentiles;
   const rimShare = d.shots.total ? d.shots.rimFga / d.shots.total : 0;
   const rimFg = d.shots.rimFga ? d.shots.rimFgm / d.shots.rimFga : 0;
   const options = pool.some((r) => r[0] === p.player_id)
-    ? pool.map((r) => ({ value: String(r[0]), label: `${r[1]} · ${r[7].join("/")}` }))
-    : [{ value: String(p.player_id), label: `${p.name} · ${p.team}` }, ...pool.map((r) => ({ value: String(r[0]), label: `${r[1]} · ${r[7].join("/")}` }))];
+    ? pool.map((r) => ({ value: String(r[0]), label: `${r[1]} · ${(r[7] ?? [r[2]]).join("/")}` }))
+    : [{ value: String(p.player_id), label: `${p.name} · ${p.team}` }, ...pool.map((r) => ({ value: String(r[0]), label: `${r[1]} · ${(r[7] ?? [r[2]]).join("/")}` }))];
 
   return (
     <div style={teamTheme(p.team)}>
@@ -99,8 +102,13 @@ export default async function PlayerProfile({ searchParams }: { searchParams: Pr
             )}
           </div>
           <div className="flex flex-col gap-5">
-            <Heading size="md" title={formHeadline(d.lastGames, p.ppg)} caption={`Points in each of the last ${d.lastGames.length} games, oldest to newest. Dashed line: season average. Losses in the warning colour.`} />
-            <div className="panel px-3 pb-3 pt-5">
+            <ChartCard
+              title={formHeadline(d.lastGames, p.ppg)}
+              description={`Points in each of the last ${d.lastGames.length} games, oldest to newest`}
+              trend={recent5 !== null ? `${recent5.toFixed(1)} points a game over the last 5, against ${p.ppg.toFixed(1)} for the season` : undefined}
+              direction={recent5 !== null && recent5 < p.ppg ? "down" : "up"}
+              note="Dashed line: season average. Losses in the warning colour."
+            >
               <GameBarsChart
                 average={p.ppg}
                 data={d.lastGames.map((g) => ({
@@ -108,7 +116,7 @@ export default async function PlayerProfile({ searchParams }: { searchParams: Pr
                   tip: `${shortDate(g.game_date)} ${g.home ? "vs" : "at"} ${g.opp} · ${g.win ? "W" : "L"} · ${g.pts} pts, ${g.reb} reb, ${g.ast} ast`,
                 }))}
               />
-            </div>
+            </ChartCard>
           </div>
         </Section>
 

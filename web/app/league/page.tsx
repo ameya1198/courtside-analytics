@@ -1,4 +1,5 @@
 import { Wrap, Heading, Section } from "@/components/blocks";
+import { ChartCard } from "@/components/chart-card";
 import { BarList } from "@/components/charts/html";
 import { ThreeRateChart } from "@/components/charts/recharts";
 import { ParamSelect } from "@/components/param-select";
@@ -123,12 +124,16 @@ export default async function LeaguePulse({ searchParams }: { searchParams: Prom
 
         {/* Three-point rate */}
         {rates.length > 1 ? (
-          <Section className="flex flex-col gap-6">
-            <Heading
+          <Section>
+            <ChartCard
               title={`Threes are ${(lastRate.rate * 100).toFixed(1)}% of all shots. Build rosters that can shoot them.`}
-              caption={`Share of field goal attempts that were threes, ${firstRate.label} to ${lastRate.label}. It was ${(firstRate.rate * 100).toFixed(1)}% in ${firstRate.label}.`}
-            />
-            <div className="panel px-4 pb-4 pt-6 md:px-7"><ThreeRateChart data={rates} /></div>
+              description={`Share of field goal attempts that were threes, ${firstRate.label} to ${lastRate.label}`}
+              trend={`${lastRate.rate >= firstRate.rate ? "Up" : "Down"} ${Math.abs((lastRate.rate - firstRate.rate) * 100).toFixed(1)} points since ${firstRate.label}`}
+              direction={lastRate.rate >= firstRate.rate ? "up" : "down"}
+              note={`${firstRate.label}: ${(firstRate.rate * 100).toFixed(1)}%. ${lastRate.label}: ${(lastRate.rate * 100).toFixed(1)}%. Regular seasons only.`}
+            >
+              <ThreeRateChart data={rates} />
+            </ChartCard>
           </Section>
         ) : null}
       </Wrap>
