@@ -176,3 +176,43 @@ models:
               arguments:
                 min_value: 0
                 max_value: 1
+
+  - name: mart_team_clutch
+    description: >
+      One row per team per season type in clutch time (last 5 minutes, score within 5 points).
+      Net rating is per 100 estimated clutch possessions.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ['team_id', 'season', 'season_type']
+
+  - name: mart_player_clutch
+    description: One row per player per season type in clutch time, with scoring and shooting.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ['player_id', 'season', 'season_type']
+
+  - name: mart_player_value
+    description: >
+      One row per player per regular season: production (NBA fantasy points per game), age and salary.
+      dollars_per_fantasy_pt is salary divided by total fantasy points; lower is better value.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ['player_id', 'season']
+    columns:
+      - name: is_qualified
+        description: Played 48% of the most games any team played, and 20+ minutes a game.
+        data_tests:
+          - not_null
+
+  - name: fct_schedule
+    description: >
+      One row per scheduled game (regular season, play-in, playoffs, NBA Cup final), played or not,
+      with each team's days of rest before it. 0 days rest means a back-to-back.
+    columns:
+      - name: game_id
+        data_tests:
+          - unique
+          - not_null

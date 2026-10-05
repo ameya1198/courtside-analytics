@@ -7,6 +7,9 @@ Usage:
     python -m ingestion.load --backfill             # every season since BACKFILL_START_SEASON
     python -m ingestion.load --shots                # new shots this season (the nightly job)
     python -m ingestion.load --shots-backfill       # all shots since SHOTS_START_SEASON
+    python -m ingestion.load --extras               # clutch, player bio and schedule for this season (nightly)
+    python -m ingestion.load --extras-backfill      # clutch and bio for every season since BACKFILL_START_SEASON
+    python -m ingestion.load --salaries             # salaries from Basketball-Reference since SALARY_START_SEASON
 
 Every load is safe to re-run. It deletes that season's rows first, then inserts
 fresh ones, all in one transaction, so you never end up with duplicates.
@@ -19,7 +22,7 @@ from datetime import date, timedelta
 import pandas as pd
 from sqlalchemy import text
 
-from ingestion import nba_client
+from ingestion import nba_client, salaries
 from ingestion.db import get_engine
 
 SEASON_TYPES = ["Regular Season", "Playoffs"]
@@ -48,13 +51,42 @@ SHOT_COLUMNS = [
     "shot_made_flag", "game_date",
 ]
 
+# Clutch and bio columns we keep (the API also returns ranks and other columns we drop).
+CLUTCH_STAT_COLUMNS = [
+    "gp", "w", "l", "min", "fgm", "fga", "fg3m", "fg3a", "ftm", "fta",
+]
+TEAM_CLUTCH_COLUMNS = (["team_id", "team_name"] + CLUTCH_STAT_COLUMNS
+                       + ["oreb", "dreb", "reb", "ast", "tov", "stl", "blk", "pts", "plus_minus"])
+PLAYER_CLUTCH_COLUMNS = (["player_id", "player_name", "team_id", "team_abbreviation"] + CLUTCH_STAT_COLUMNS
+                         + ["reb", "ast", "tov", "stl", "blk", "pts", "plus_minus"])
+BIO_COLUMNS = [
+    "player_id", "player_name", "team_id", "team_abbreviation", "age", "player_height_inches",
+    "player_weight", "college", "country", "draft_year", "draft_round", "draft_number",
+]
+# The schedule API uses camelCase names. Ours on the left, theirs on the right.
+SCHEDULE_COLUMNS = {
+    "game_id": "gameId",
+    "game_date": "gameDateEst",
+    "game_datetime_utc": "gameDateTimeUTC",
+    "game_status": "gameStatus",
+    "game_status_text": "gameStatusText",
+    "game_label": "gameLabel",
+    "home_team_id": "homeTeam_teamId",
+    "home_team_tricode": "homeTeam_teamTricode",
+    "home_score": "homeTeam_score",
+    "away_team_id": "awayTeam_teamId",
+    "away_team_tricode": "awayTeam_teamTricode",
+    "away_score": "awayTeam_score",
+    "arena_name": "arenaName",
+}
+
 # These columns are whole numbers in the database. Pandas reads them as decimals,
 # so we convert them before inserting.
 WHOLE_NUMBER_COLUMNS = [
     "player_id", "team_id", "fgm", "fga", "fg3m", "fg3a", "ftm", "fta", "oreb", "dreb",
     "reb", "ast", "stl", "blk", "tov", "pf", "pts", "video_available",
     "game_event_id", "period", "minutes_remaining", "seconds_remaining", "shot_distance",
-    "loc_x", "loc_y", "shot_made_flag",
+    "loc_x", "loc_y", "shot_made_flag", "gp", "w", "l", "player_height_inches", "player_weight",
 ]
 
 # Which table, which columns, and which API level ("P" player, "T" team) per source.
@@ -77,10 +109,12 @@ def prepare_rows(
     df = df.copy()
     df.columns = [name.lower() for name in df.columns]  # SEASON_ID -> season_id
     df = df[columns]  # keep only the columns we store
-    df["game_date"] = pd.to_datetime(df["game_date"]).dt.date
+    if "game_date" in df.columns:
+        df["game_date"] = pd.to_datetime(df["game_date"]).dt.date
     for name in WHOLE_NUMBER_COLUMNS:
         if name in df.columns:
-            df[name] = pd.to_numeric(df[name]).astype("Int64")  # Int64 allows blanks
+            # errors="coerce" turns blanks and odd text into empty values instead of failing
+            df[name] = pd.to_numeric(df[name], errors="coerce").round().astype("Int64")
     df["season"] = season
     df["season_type"] = season_type
     return df
@@ -208,6 +242,133 @@ def load_shots_recent(engine, season: int) -> None:
         load_shots_range(engine, season, start, end)
 
 
+def replace_rows(engine, table: str, df: pd.DataFrame, where: str, params: dict) -> None:
+    """Delete the rows a load covers, then insert the new ones, in one transaction."""
+    with engine.begin() as conn:
+        conn.execute(text(f"delete from raw.{table} where {where}"), params)
+        if not df.empty:
+            df.to_sql(table, conn, schema="raw", if_exists="append", index=False,
+                      chunksize=2000, method="multi")
+
+
+def load_season_table(engine, table: str, fetch, columns: list, season: int, season_type: str) -> int:
+    """Load one season of a league-wide table (clutch or bio). Skips quietly if there is no data yet."""
+    run_id = start_run(engine, f"{table}:{season_type}", season)
+    try:
+        raw = fetch(season, season_type)
+        if raw.empty:
+            finish_run(engine, run_id, "success", rows=0)
+            print(f"{table} {season} {season_type}: no rows from the API, skipped")
+            return 0
+        df = prepare_rows(raw, columns, season, season_type)
+        replace_rows(engine, table, df, "season = :s and season_type = :t", {"s": season, "t": season_type})
+        finish_run(engine, run_id, "success", rows=len(df))
+        print(f"{table} {season} {season_type}: loaded {len(df)} rows")
+        return len(df)
+    except Exception as error:
+        finish_run(engine, run_id, "failed", error=str(error)[:500])
+        raise
+
+
+def load_clutch(engine, season: int) -> None:
+    for season_type in SEASON_TYPES:
+        load_season_table(engine, "team_clutch", nba_client.get_team_clutch, TEAM_CLUTCH_COLUMNS, season, season_type)
+        time.sleep(2)
+        load_season_table(engine, "player_clutch", nba_client.get_player_clutch, PLAYER_CLUTCH_COLUMNS,
+                          season, season_type)
+        time.sleep(2)
+
+
+def load_bio(engine, season: int) -> None:
+    """Age is per season, so one regular-season call per season is enough."""
+    load_season_table(engine, "player_bio", nba_client.get_player_bio, BIO_COLUMNS, season, "Regular Season")
+    time.sleep(2)
+
+
+def prepare_schedule(raw: pd.DataFrame, season: int) -> pd.DataFrame:
+    """Rename the schedule API's columns to ours. Scores of games not played yet are left empty."""
+    df = pd.DataFrame({ours: raw[theirs] if theirs in raw.columns else None
+                       for ours, theirs in SCHEDULE_COLUMNS.items()})
+    df["game_date"] = pd.to_datetime(df["game_date"]).dt.date
+    df["game_datetime_utc"] = pd.to_datetime(df["game_datetime_utc"], utc=True)
+    for name in ["game_status", "home_team_id", "away_team_id", "home_score", "away_score"]:
+        df[name] = pd.to_numeric(df[name], errors="coerce").astype("Int64")
+    not_final = df["game_status"] != 3
+    df.loc[not_final, ["home_score", "away_score"]] = pd.NA
+    df = df[df["game_id"].notna() & df["home_team_id"].notna()].drop_duplicates(subset=["game_id"])
+    df["season"] = season
+    return df
+
+
+def load_schedule(engine, season: int) -> int:
+    run_id = start_run(engine, "schedule", season)
+    try:
+        df = prepare_schedule(nba_client.get_schedule(season), season)
+        replace_rows(engine, "schedule", df, "season = :s", {"s": season})
+        finish_run(engine, run_id, "success", rows=len(df))
+        print(f"schedule {season}: loaded {len(df)} games")
+        return len(df)
+    except Exception as error:
+        finish_run(engine, run_id, "failed", error=str(error)[:500])
+        raise
+
+
+def load_extras(engine, season: int) -> None:
+    load_clutch(engine, season)
+    load_bio(engine, season)
+    load_schedule(engine, season)
+
+
+def load_salaries(engine, first_season: int, last_season: int) -> None:
+    """Past and current seasons from team pages, then this and future seasons from the contracts page."""
+    index = salaries.build_name_index(nba_client.get_players().to_dict("records"))
+    unmatched: set[str] = set()
+
+    def with_ids(rows: list[dict]) -> pd.DataFrame:
+        df = pd.DataFrame(rows)
+        if df.empty:
+            return df
+        df["player_id"] = [salaries.match_player(n, index) for n in df["player_name"]]
+        df["player_id"] = df["player_id"].astype("Int64")
+        unmatched.update(df.loc[df["player_id"].isna(), "player_name"])
+        return df
+
+    for season in range(first_season, last_season + 1):
+        run_id = start_run(engine, "salaries:team_page", season)
+        try:
+            rows = []
+            for team in salaries.NBA_TEAMS:
+                for row in salaries.parse_team_salaries(salaries.fetch(salaries.team_page_url(team, season))):
+                    rows.append({**row, "team": salaries.bbref_team(team), "season": season})
+            df = with_ids(rows)
+            if not df.empty:
+                df["source"] = "team_page"
+            replace_rows(engine, "salaries", df, "season = :s and source = 'team_page'", {"s": season})
+            finish_run(engine, run_id, "success", rows=len(df))
+            print(f"salaries {season} (team pages): loaded {len(df)} rows")
+        except Exception as error:
+            finish_run(engine, run_id, "failed", error=str(error)[:500])
+            raise
+
+    run_id = start_run(engine, "salaries:contracts_page", None)
+    try:
+        df = with_ids(salaries.parse_contracts(salaries.fetch(salaries.CONTRACTS_URL)))
+        if not df.empty:
+            df["source"] = "contracts_page"
+        replace_rows(engine, "salaries", df, "source = 'contracts_page'", {})
+        finish_run(engine, run_id, "success", rows=len(df))
+        print(f"salaries (contracts page): loaded {len(df)} rows")
+    except Exception as error:
+        finish_run(engine, run_id, "failed", error=str(error)[:500])
+        raise
+
+    if unmatched:
+        print(f"{len(unmatched)} salary names did not match an NBA player id. "
+              f"Add them to NAME_OVERRIDES in ingestion/salaries.py if they matter:")
+        for name in sorted(unmatched):
+            print(f"  {name}  ->  key '{salaries.normalize_name(name)}'")
+
+
 def load_reference(engine) -> None:
     """Teams and players are small lists, so we replace them completely each time."""
     tables = {
@@ -246,6 +407,9 @@ def main() -> None:
     parser.add_argument("--backfill", action="store_true", help="load all seasons")
     parser.add_argument("--shots", action="store_true", help="load new shots for this season")
     parser.add_argument("--shots-backfill", action="store_true", help="load all shots")
+    parser.add_argument("--extras", action="store_true", help="clutch, bio and schedule for this season")
+    parser.add_argument("--extras-backfill", action="store_true", help="clutch and bio for all seasons")
+    parser.add_argument("--salaries", action="store_true", help="salaries from Basketball-Reference")
     args = parser.parse_args()
 
     engine = get_engine()
@@ -266,6 +430,19 @@ def main() -> None:
         first = int(os.environ.get("SHOTS_START_SEASON", "2024"))
         for season in range(first, current_season() + 1):
             load_shots_season(engine, season)
+    if args.extras:
+        load_extras(engine, current_season())
+    if args.extras_backfill:
+        first = int(os.environ.get("BACKFILL_START_SEASON", "2015"))
+        for season in range(first, current_season() + 1):
+            load_clutch(engine, season)
+            load_bio(engine, season)
+        # The schedule only matters for last season and this one.
+        for season in (current_season() - 1, current_season()):
+            load_schedule(engine, season)
+    if args.salaries:
+        first = int(os.environ.get("SALARY_START_SEASON", "2023"))
+        load_salaries(engine, first, current_season())
 
 
 if __name__ == "__main__":

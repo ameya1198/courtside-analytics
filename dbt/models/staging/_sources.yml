@@ -28,3 +28,17 @@ sources:
         description: One row per team per game, regular season and playoffs.
       - name: shots
         description: One row per shot attempt (made or missed), with court position and zone.
+      - name: team_clutch
+        description: Team totals in clutch time (last 5 minutes, score within 5), per season type.
+      - name: player_clutch
+        description: Player totals in clutch time, per season type.
+      - name: player_bio
+        description: Player age, size and draft details per season.
+      - name: schedule
+        description: Every scheduled game of a season, including games not played yet.
+        config:
+          freshness: null   # loaded once and refreshed nightly in season
+      - name: salaries
+        description: Player salaries scraped from Basketball-Reference, matched to NBA player ids by name.
+        config:
+          freshness: null   # refreshed a few times a year

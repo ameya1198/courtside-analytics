@@ -102,3 +102,47 @@ models:
               arguments:
                 min_value: -250
                 max_value: 250
+
+  - name: stg_nba__team_clutch
+    description: Team clutch-time totals per season type (last 5 minutes, score within 5).
+    columns:
+      - name: team_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_nba__teams')
+                field: team_id
+
+  - name: stg_nba__player_clutch
+    description: Player clutch-time totals per season type.
+    columns:
+      - name: player_id
+        data_tests:
+          - not_null
+
+  - name: stg_nba__player_bio
+    description: Player age, size and draft details per season.
+    columns:
+      - name: player_id
+        data_tests:
+          - not_null
+
+  - name: stg_nba__schedule
+    description: The season schedule, one row per game, including games not played yet.
+    columns:
+      - name: game_id
+        data_tests:
+          - unique
+          - not_null
+
+  - name: stg_nba__salaries
+    description: One salary per player per season. Team pages win over the contracts page.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ['season', 'bbref_id']
+    columns:
+      - name: salary
+        data_tests:
+          - not_null

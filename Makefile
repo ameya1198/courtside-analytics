@@ -1,4 +1,4 @@
-.PHONY: check-db lint test load-reference load-current backfill load-shots backfill-shots dbt-build
+.PHONY: check-db lint test load-reference load-current backfill load-shots backfill-shots dbt-build load-extras backfill-extras load-salaries
 
 check-db:
 	python -m ingestion.db --check
@@ -32,3 +32,15 @@ backfill-shots:
 
 dbt-build:
 	cd dbt && set -a && . ../.env && set +a && dbt build
+
+# Clutch splits, player bio (age) and schedule for this season. Part of the nightly job.
+load-extras:
+	python -m ingestion.load --extras
+
+# Clutch and bio for every season since BACKFILL_START_SEASON. Run once.
+backfill-extras:
+	python -m ingestion.load --extras-backfill
+
+# Salaries from Basketball-Reference since SALARY_START_SEASON. Run a few times a year.
+load-salaries:
+	python -m ingestion.load --salaries

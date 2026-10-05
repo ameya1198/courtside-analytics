@@ -2,7 +2,14 @@
 import time
 
 import pandas as pd
-from nba_api.stats.endpoints import leaguegamelog, shotchartdetail
+from nba_api.stats.endpoints import (
+    leaguedashplayerbiostats,
+    leaguedashplayerclutch,
+    leaguedashteamclutch,
+    leaguegamelog,
+    scheduleleaguev2,
+    shotchartdetail,
+)
 from nba_api.stats.static import players, teams
 
 
@@ -69,3 +76,63 @@ def get_shots(start_year: int, season_type: str, date_from, date_to) -> pd.DataF
             last_error = error
             time.sleep(5 * (attempt + 1))
     raise last_error
+
+
+def _with_retries(make_call):
+    """stats.nba.com drops requests now and then. Try three times, waiting longer each time."""
+    last_error = None
+    for attempt in range(3):
+        try:
+            return make_call()
+        except Exception as error:  # noqa: BLE001
+            last_error = error
+            time.sleep(5 * (attempt + 1))
+    raise last_error
+
+
+# Clutch time, as the NBA defines it: last 5 minutes of the 4th quarter or overtime,
+# with the score within 5 points.
+CLUTCH = {"clutch_time": "Last 5 Minutes", "ahead_behind": "Ahead or Behind", "point_diff": 5}
+
+
+def get_team_clutch(start_year: int, season_type: str) -> pd.DataFrame:
+    """Season totals in clutch time, one row per team."""
+    return _with_retries(lambda: leaguedashteamclutch.LeagueDashTeamClutch(
+        season=season_label(start_year),
+        season_type_all_star=season_type,
+        per_mode_detailed="Totals",
+        measure_type_detailed_defense="Base",
+        timeout=60,
+        **CLUTCH,
+    ).get_data_frames()[0])
+
+
+def get_player_clutch(start_year: int, season_type: str) -> pd.DataFrame:
+    """Season totals in clutch time, one row per player."""
+    return _with_retries(lambda: leaguedashplayerclutch.LeagueDashPlayerClutch(
+        season=season_label(start_year),
+        season_type_all_star=season_type,
+        per_mode_detailed="Totals",
+        measure_type_detailed_defense="Base",
+        timeout=60,
+        **CLUTCH,
+    ).get_data_frames()[0])
+
+
+def get_player_bio(start_year: int, season_type: str = "Regular Season") -> pd.DataFrame:
+    """Age, height, weight and draft details for every player who played that season."""
+    return _with_retries(lambda: leaguedashplayerbiostats.LeagueDashPlayerBioStats(
+        season=season_label(start_year),
+        season_type_all_star=season_type,
+        per_mode_simple="Totals",
+        timeout=60,
+    ).get_data_frames()[0])
+
+
+def get_schedule(start_year: int) -> pd.DataFrame:
+    """The whole season's schedule, including games not played yet."""
+    return _with_retries(lambda: scheduleleaguev2.ScheduleLeagueV2(
+        league_id="00",
+        season=season_label(start_year),
+        timeout=60,
+    ).get_data_frames()[0])
