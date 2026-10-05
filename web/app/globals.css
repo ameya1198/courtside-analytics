@@ -13,11 +13,11 @@
   --accent-ink: #ffffff;
   --warn: #d9480f;
   --warn-ink: #ffffff;
-  --panel: #0b0d12;
-  --panel-ink: #ffffff;
-  --panel-muted: #a7aebb;
-  --panel-grid: #272b35;
-  --panel-dot: #6c7384;
+  --panel: transparent;
+  --panel-ink: #0b0d12;
+  --panel-muted: #444b58;
+  --panel-grid: #e2e5ea;
+  --panel-dot: #a3a9b3;
 }
 
 @theme inline {
@@ -70,6 +70,7 @@ body {
 /* Chart panels: Recharts text and grid follow the panel colours. */
 .panel {
   background: var(--panel);
+  padding: 0 !important;
   color: var(--panel-ink);
   --chart-muted: var(--panel-muted);
   --chart-grid: var(--panel-grid);

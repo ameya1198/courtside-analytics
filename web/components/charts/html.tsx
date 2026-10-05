@@ -223,7 +223,7 @@ export function ShotHeatmap({ bins }: { bins: [number, number, number, number][]
                 cx={x + 275}
                 cy={300 - y - 25}
                 r={22 + t * 22}
-                fill={t > 0.8 ? "var(--panel-ink)" : "var(--accent)"}
+                fill="var(--accent)"
                 opacity={Math.min(1, 0.1 + t * 1.2)}
               />
             );

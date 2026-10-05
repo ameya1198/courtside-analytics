@@ -19,7 +19,7 @@ export function ThreeRateChart({ data }: { data: { label: string; rate: number }
         <ChartTooltip cursor={false} content={<ChartTooltipContent hideIndicator formatter={(v) => `${v}% of shots`} />} />
         <Bar dataKey="pct" radius={0} isAnimationActive={false}>
           {rows.map((r, i) => (
-            <Cell key={r.label} fill={i === rows.length - 1 ? "var(--accent)" : "var(--panel-ink)"} />
+            <Cell key={r.label} fill={i === rows.length - 1 ? "var(--accent)" : "var(--panel-dot)"} />
           ))}
           <LabelList dataKey="pct" position="top" formatter={(v: number) => `${v}%`} className="fill-[var(--panel-ink)] font-mono text-[12px]" />
         </Bar>
@@ -118,7 +118,7 @@ export function RestBucketsChart({ data }: { data: { label: string; win: number;
           formatter={(_, __, item) => `${item.payload.win}% wins · ${item.payload.margin > 0 ? "+" : ""}${item.payload.margin} margin · ${item.payload.games.toLocaleString()} games`} />} />
         <Bar dataKey="win" isAnimationActive={false}>
           {data.map((d, i) => (
-            <Cell key={d.label} fill={i === 0 ? "var(--warn)" : "var(--panel-ink)"} />
+            <Cell key={d.label} fill={i === 0 ? "var(--warn)" : "var(--panel-dot)"} />
           ))}
           <LabelList dataKey="win" position="top" formatter={(v: number) => `${v}%`} className="fill-[var(--panel-ink)] font-[family-name:var(--font-display)] text-[34px] font-black" />
         </Bar>
@@ -178,7 +178,7 @@ export function AgeCurveChart({ data, peak }: { data: { age: number; fppg: numbe
           formatter={(_, __, item) => `${item.payload.fppg} fantasy pts a game · ${item.payload.players} player-seasons`} />} />
         <Bar dataKey="fppg" isAnimationActive={false}>
           {data.map((d) => (
-            <Cell key={d.age} fill={d.age === peak ? "var(--accent)" : "var(--panel-ink)"} />
+            <Cell key={d.age} fill={d.age === peak ? "var(--accent)" : "var(--panel-dot)"} />
           ))}
         </Bar>
       </BarChart>

@@ -39,8 +39,7 @@ export const TEAM_COLORS: Record<string, TeamColor> = {
 export const BRAND = "#1F4FD1";
 const ORANGE = "#D9480F";
 const INK = "#0B0D12";
-const DARK_PANEL = { "--panel": "#0B0D12", "--panel-ink": "#FFFFFF", "--panel-muted": "#A7AEBB", "--panel-grid": "#272B35", "--panel-dot": "#6C7384" };
-const LIGHT_PANEL = { "--panel": "#EEF0F3", "--panel-ink": "#0B0D12", "--panel-muted": "#444B58", "--panel-grid": "#D2D6DC", "--panel-dot": "#9AA0AB" };
+const PLAIN_PANEL = { "--panel": "transparent", "--panel-ink": "#0B0D12", "--panel-muted": "#444B58", "--panel-grid": "#E2E5EA", "--panel-dot": "#A3A9B3" };
 
 function hexToRgb(hex: string) {
   const n = parseInt(hex.slice(1), 16);
@@ -86,8 +85,8 @@ export function teamTheme(abbr?: string | null) {
     "--accent-ink": onColor(accent),
     "--warn": warm ? INK : ORANGE,
     "--warn-ink": "#FFFFFF",
-    // Chart panels are black in the broadcast style, unless the accent is too dark to read on black.
-    ...(luminance(accent) >= 0.06 ? DARK_PANEL : LIGHT_PANEL),
+    // Charts sit straight on the page background, no panel behind them.
+    ...PLAIN_PANEL,
   } as React.CSSProperties;
 }
 
