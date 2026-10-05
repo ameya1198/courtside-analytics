@@ -8,16 +8,16 @@ export function Wrap({ className, children }: { className?: string; children: Re
 export function Heading({ title, caption, size = "lg" }: { title: string; caption?: string; size?: "lg" | "md" }) {
   return (
     <div className="flex max-w-[880px] flex-col gap-2">
-      <h2 className={cn("display", size === "lg" ? "text-[clamp(30px,4vw,48px)]" : "text-[clamp(26px,3vw,38px)]")}>
+      <h2 className={cn("display text-balance", size === "lg" ? "text-[clamp(30px,4vw,48px)]" : "text-[clamp(26px,3vw,38px)]")}>
         {title}
       </h2>
-      {caption ? <p className="text-[16px] text-muted">{caption}</p> : null}
+      {caption ? <p className="text-pretty text-[16px] text-muted">{caption}</p> : null}
     </div>
   );
 }
 
 export function Section({ className, children }: { className?: string; children: React.ReactNode }) {
-  return <section className={cn("pt-14", className)}>{children}</section>;
+  return <section className={cn("mt-8 border-t border-line pt-14", className)}>{children}</section>;
 }
 
 export function Kpi({ label, value, note }: { label: string; value: string; note?: string }) {

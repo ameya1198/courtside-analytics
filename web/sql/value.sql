@@ -1,4 +1,6 @@
 -- Player Value. $1 = season (null = latest season that has both games and salaries).
+-- $2 = team abbreviation: limits the bargain, worst-contract and leader lists to that team (null = whole league).
+-- Medians, the age curve and the chart points stay league-wide, as the comparison.
 with seasons as (
   select distinct season from marts.mart_player_value where salary is not null
 ),
@@ -40,6 +42,7 @@ select json_build_object(
       select player_id, player_name, team_abbreviation as team, salary, fantasy_ppg::float, dollars_per_fantasy_pt::float as per_pt
       from priced
       where salary >= 2000000  -- skip two-way and minimum-salary call-ups
+        and ($2::text is null or team_abbreviation = upper($2::text))
       order by dollars_per_fantasy_pt asc limit 5) b),
   'worst', (select coalesce(json_agg(w), '[]'::json) from (
       -- Big contracts, judged on whatever games the player managed, so injuries count against value.
@@ -47,10 +50,13 @@ select json_build_object(
              dollars_per_fantasy_pt::float as per_pt
       from pool
       where salary >= 20000000 and games >= 10
+        and ($2::text is null or team_abbreviation = upper($2::text))
       order by dollars_per_fantasy_pt desc limit 5) w),
   'leaders', (select coalesce(json_agg(l), '[]'::json) from (
       select player_id, player_name, team_abbreviation as team, ppg::float, pts_per_36::float as p36,
              ts_pct::float as ts, salary
-      from qualified order by pts_per_36 desc limit 10) l),
+      from qualified
+      where $2::text is null or team_abbreviation = upper($2::text)
+      order by pts_per_36 desc limit 10) l),
   'ages', (select coalesce(json_agg(a order by a.age), '[]'::json) from ages a)
 ) as data

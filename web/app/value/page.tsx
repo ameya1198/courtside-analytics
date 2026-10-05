@@ -6,6 +6,7 @@ import { ParamSelect } from "@/components/param-select";
 import { pageData } from "@/lib/db";
 import { dec3, parseSeason, seasonOptions } from "@/lib/format";
 import { money } from "@/lib/insights";
+import { myTeam } from "@/lib/my-team";
 import { teamTheme } from "@/lib/teams";
 import type { ValueData } from "@/lib/types";
 
@@ -18,11 +19,11 @@ function ValueList({ rows, tone, valueNote }: {
 }) {
   return (
     <div className="flex flex-col">
-      <div className="label grid grid-cols-[28px_minmax(0,1fr)_84px_84px] gap-3 border-b-[3px] border-ink pb-2">
+      <div className="label grid grid-cols-[28px_minmax(0,1fr)_84px_84px] gap-3 border-b-[3px] border-ink pb-2 text-muted">
         <span>#</span><span>Player</span><span className="text-right">Salary</span><span className="text-right">$ per pt</span>
       </div>
       {rows.map((r, i) => (
-        <div key={r.player_id} className="grid grid-cols-[28px_minmax(0,1fr)_84px_84px] items-center gap-3 border-b border-line py-3">
+        <div key={r.player_id} className="row-hover grid grid-cols-[28px_minmax(0,1fr)_84px_84px] items-center gap-3 border-b border-line py-3">
           <span className="font-mono text-[14px] text-muted">{i + 1}</span>
           <div className="flex min-w-0 flex-col">
             <a href={`/player?player=${r.player_id}`} className="display truncate text-[24px] font-extrabold tracking-[0.02em] hover:underline">{r.player_name}</a>
@@ -38,7 +39,9 @@ function ValueList({ rows, tone, valueNote }: {
 
 export default async function PlayerValue({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
-  const d = await pageData<ValueData>("value", [parseSeason(sp.season)]);
+  const mine = await myTeam();
+  // Lists are limited to the chosen team; league medians and the chart stay league-wide for comparison
+  const d = await pageData<ValueData>("value", [parseSeason(sp.season), mine?.abbr ?? null]);
   if (!d.season || !d.players.length) {
     return <Wrap className="py-20"><Empty>No salary data loaded yet. Run the salary loader, then rebuild dbt.</Empty></Wrap>;
   }
@@ -47,7 +50,8 @@ export default async function PlayerValue({ searchParams }: { searchParams: Prom
   const best = d.bargains[0];
   const worst = d.worst[0];
   const medS = d.medianSalary ?? 0, medP = d.medianProduction ?? 0;
-  const topLeft = d.players.filter((p) => p[4] < medS && p[5] > medP).length;
+  const ours = d.players.filter((p) => !mine || p[2] === mine.abbr);
+  const topLeft = ours.filter((p) => p[4] < medS && p[5] > medP).length;
 
   const curve = d.ages.filter((a) => a.players >= 20);
   const peak = curve.reduce((a, b) => (b.fantasy_ppg > a.fantasy_ppg ? b : a), curve[0]);
@@ -55,14 +59,14 @@ export default async function PlayerValue({ searchParams }: { searchParams: Prom
   const leaders = d.leaders;
 
   return (
-    <div style={teamTheme(null)}>
+    <div style={teamTheme(mine?.abbr)}>
       <Hero
         eyebrow={`Player Value · ${d.seasonLabel} · ${d.pricedCount} qualified players with a known salary`}
         title="Who produces more than they cost"
         controls={<ParamSelect name="season" label="Season" value={String(d.season)} options={seasonOptions(d.seasons)} />}
         side={
           best ? (
-            <div className="flex flex-[0_1_380px] flex-col gap-1 border-t-[3px] border-current pb-12 pt-4">
+            <div className="flex flex-[0_1_380px] flex-col gap-1 border-t-[3px] border-current pb-16 pt-4">
               <span className="label">Best value in the league</span>
               <span className="display text-[64px]">{perPt(best)}</span>
               <span className="text-[15px]">per fantasy point from {best.player_name} ({best.team}), paid {money(best.salary)}.</span>
@@ -74,14 +78,14 @@ export default async function PlayerValue({ searchParams }: { searchParams: Prom
       <Wrap>
         <Section className="flex flex-col gap-6">
           <Heading
-            title={`${topLeft} players produce above the median on below-median pay. Target them in trades.`}
+            title={mine ? `${topLeft} ${mine.name} player${topLeft === 1 ? "" : "s"} produce above the league median on below-median pay.` : `${topLeft} players produce above the median on below-median pay. Target them in trades.`}
             caption={`Salary against NBA fantasy points per game (points, rebounds, assists, steals, blocks, minus turnovers). Dashed lines are the medians: ${money(medS)} and ${medP.toFixed(1)} points. Top left is the best value. The five best bargains are highlighted.`}
           />
           <div className="panel px-2 pb-2 pt-4">
             <SalaryQuadrantChart
               medianSalary={medS / 1e6}
               medianProduction={medP}
-              highlight={d.bargains.map((r) => r.player_id)}
+              highlight={mine ? ours.map((p) => p[0]) : d.bargains.map((r) => r.player_id)}
               points={d.players.map((p) => ({ id: p[0], name: p[1], team: p[2], salaryM: p[4] / 1e6, fppg: p[5] }))}
             />
           </div>
@@ -116,14 +120,14 @@ export default async function PlayerValue({ searchParams }: { searchParams: Prom
 
         {leaders.length ? (
           <Section className="flex flex-col gap-6">
-            <Heading title={`${leaders[0].player_name} leads in scoring per 36 minutes.`} caption="Production leaders, with what they are paid." />
+            <Heading title={`${leaders[0].player_name} leads in scoring per 36 minutes.`} caption={mine ? `${mine.name} production leaders, with what they are paid.` : "Production leaders, with what they are paid."} />
             <div className="overflow-x-auto">
               <div className="min-w-[720px]">
-                <div className="label grid grid-cols-[36px_minmax(180px,1.3fr)_56px_minmax(0,1.6fr)_70px_70px_90px] gap-3 border-b-[3px] border-ink pb-2">
+                <div className="label grid grid-cols-[36px_minmax(180px,1.3fr)_56px_minmax(0,1.6fr)_70px_70px_90px] gap-3 border-b-[3px] border-ink pb-2 text-muted">
                   <span>#</span><span>Player</span><span>Team</span><span>Points per 36</span><span className="text-right">PPG</span><span className="text-right">TS%</span><span className="text-right">Salary</span>
                 </div>
                 {leaders.map((r, i) => (
-                  <div key={r.player_id} className="grid grid-cols-[36px_minmax(180px,1.3fr)_56px_minmax(0,1.6fr)_70px_70px_90px] items-center gap-3 border-b border-line py-3">
+                  <div key={r.player_id} className="row-hover grid grid-cols-[36px_minmax(180px,1.3fr)_56px_minmax(0,1.6fr)_70px_70px_90px] items-center gap-3 border-b border-line py-3">
                     <span className="font-mono text-[14px] text-muted">{i + 1}</span>
                     <a href={`/player?player=${r.player_id}&season=${d.season}`} className="display text-[24px] font-extrabold tracking-[0.02em] hover:underline">{r.player_name}</a>
                     <span className="font-mono text-[14px] font-medium">{r.team}</span>

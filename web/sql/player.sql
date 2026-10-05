@@ -16,6 +16,8 @@ season_line as (
   select player_id, max(player_name) as name,
          (array_agg(team_abbreviation order by game_date desc))[1] as team,
          (array_agg(team_id order by game_date desc))[1] as team_id,
+         -- every team the player appeared for this season (traded players have two or more)
+         array_agg(distinct team_abbreviation) as teams,
          count(*)::int as gp,
          round(sum(minutes_played) / count(*), 1)::float as mpg,
          round(sum(pts)::numeric / count(*), 1)::float as ppg,
@@ -23,9 +25,9 @@ season_line as (
          round(sum(ast)::numeric / count(*), 1)::float as apg,
          round(sum(stl)::numeric / count(*), 1)::float as spg,
          round(sum(blk)::numeric / count(*), 1)::float as bpg,
-         round(sum(pts) / nullif(2 * (sum(fga) + 0.44 * sum(fta)), 0), 3)::float as ts,
+         coalesce(round(sum(pts) / nullif(2 * (sum(fga) + 0.44 * sum(fta)), 0), 3), 0)::float as ts,
          round(sum(fg3m)::numeric / nullif(sum(fg3a), 0), 3)::float as fg3,
-         round(36 * sum(pts) / nullif(sum(minutes_played), 0), 1)::float as p36
+         coalesce(round(36 * sum(pts) / nullif(sum(minutes_played), 0), 1), 0)::float as p36
   from pg group by player_id
 ),
 qualified as (
@@ -71,7 +73,10 @@ select json_build_object(
   'seasons', (select json_agg(distinct season order by season desc) from marts.mart_team_ratings where season_type = 'Regular Season'),
   'minGames', (select min_gp from bar),
   'qualifiedCount', (select count(*) from qualified),
-  'pool', (select json_agg(json_build_array(player_id, name, team, ppg, p36, ts) order by ppg desc) from qualified),
+  -- Everyone who played, not just qualified players. Element 7 says if the player is ranked, element 8 lists their teams.
+  'pool', (select json_agg(json_build_array(l.player_id, l.name, l.team, l.ppg, l.p36, l.ts, q.player_id is not null, l.teams)
+                           order by (q.player_id is not null) desc, l.ppg desc)
+           from season_line l left join qualified q using (player_id)),
   'player', (select row_to_json(l) from season_line l, pick where l.player_id = pick.player_id),
   'percentiles', (select row_to_json(p) from pct p, pick where p.player_id = pick.player_id),
   'lastGames', (select coalesce(json_agg(g order by g.game_date), '[]'::json) from last_games g),

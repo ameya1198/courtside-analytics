@@ -14,7 +14,7 @@ export function Diverging({
   return (
     <div className="flex flex-col">
       {(leftLabel || rightLabel) && (
-        <div className="label grid gap-3 border-b-[3px] border-ink pb-2" style={grid}>
+        <div className="label grid gap-3 border-b-[3px] border-ink pb-2 text-muted" style={grid}>
           <span />
           <span className="flex justify-between"><span>{leftLabel}</span><span>{rightLabel}</span></span>
           <span />
@@ -25,7 +25,7 @@ export function Diverging({
         const half = Math.min(50, (Math.abs(r.value) / max) * 50);
         const color = r.tone === "warn" ? "var(--warn)" : r.tone === "ink" ? "var(--ink)" : "var(--accent)";
         return (
-          <div key={r.key} className="grid items-center gap-3 border-b border-line py-2.5" style={grid}>
+          <div key={r.key} className="row-hover grid items-center gap-3 border-b border-line py-2.5" style={grid}>
             <span className="display text-[22px] font-extrabold tracking-[0.03em]">{r.label}</span>
             <div className="relative h-[18px]">
               <div className="absolute inset-y-[-6px] left-1/2 border-l-2 border-ink" />
@@ -48,7 +48,7 @@ export function BarList({ rows, max, tone }: { rows: { key: string; label: strin
   return (
     <div className="flex flex-col">
       {rows.map((r) => (
-        <div key={r.key} className="grid grid-cols-[56px_minmax(0,1fr)_64px_minmax(90px,130px)] items-center gap-3 border-b border-line py-3">
+        <div key={r.key} className="row-hover grid grid-cols-[56px_minmax(0,1fr)_64px_minmax(90px,130px)] items-center gap-3 border-b border-line py-3">
           <span className="display text-[24px] font-extrabold tracking-[0.04em]">{r.label}</span>
           <div className="h-[18px]">
             <div className="h-[18px]" style={{ width: `${Math.min(100, (Math.abs(r.value) / max) * 100)}%`, background: `var(--${tone})` }} />
@@ -65,7 +65,7 @@ export function PercentileBars({ rows }: { rows: { label: string; value: number 
   return (
     <div className="flex flex-col">
       {rows.map((r) => (
-        <div key={r.label} className="grid grid-cols-[120px_minmax(0,1fr)_52px] items-center gap-3 border-b border-line py-2.5">
+        <div key={r.label} className="row-hover grid grid-cols-[120px_minmax(0,1fr)_52px] items-center gap-3 border-b border-line py-2.5">
           <span className="display text-[22px] font-extrabold tracking-[0.03em]">{r.label}</span>
           <div className="relative h-[22px] bg-soft">
             <div className="absolute inset-y-0 left-0" style={{ width: `${r.value}%`, background: r.value >= 90 ? "var(--accent)" : "var(--ink)" }} />
@@ -82,14 +82,14 @@ export function PercentileBars({ rows }: { rows: { label: string; value: number 
 export function FactorTable({ team, league, ranks, abbr }: { team: Factors; league: Factors; ranks: Record<keyof Factors, number>; abbr: string }) {
   return (
     <div className="flex flex-col">
-      <div className="label grid grid-cols-[minmax(130px,1.2fr)_76px_76px_64px] gap-3 border-b-[3px] border-ink pb-2">
+      <div className="label grid grid-cols-[minmax(130px,1.2fr)_76px_76px_64px] gap-3 border-b-[3px] border-ink pb-2 text-muted">
         <span>Factor</span><span className="text-right">{abbr}</span><span className="text-right">League</span><span className="text-right">Rank</span>
       </div>
       {FACTOR_META.map((m) => {
         const rank = ranks[m.key];
         const tone = rank <= 5 ? "var(--accent)" : rank >= 21 ? "var(--warn)" : "var(--ink)";
         return (
-          <div key={m.key} className="grid grid-cols-[minmax(130px,1.2fr)_76px_76px_64px] items-center gap-3 border-b border-line py-3.5">
+          <div key={m.key} className="row-hover grid grid-cols-[minmax(130px,1.2fr)_76px_76px_64px] items-center gap-3 border-b border-line py-3.5">
             <div className="flex flex-col">
               <span className="display text-[24px] font-extrabold tracking-[0.03em]">{m.label}</span>
               <span className="text-[13px] text-muted">{m.hint}</span>
@@ -135,13 +135,13 @@ export function ZoneRows({ zones, compare, abbr, compareLabel }: { zones: Zone[]
   const max = Math.max(0.35, ...rows.map((z) => z.share), ...compare.map((z) => z.share));
   return (
     <div className="flex flex-col">
-      <div className="label grid grid-cols-[minmax(120px,1fr)_minmax(0,1.4fr)_70px_70px] gap-3 border-b-[3px] border-ink pb-2">
+      <div className="label grid grid-cols-[minmax(120px,1fr)_minmax(0,1.4fr)_70px_70px] gap-3 border-b-[3px] border-ink pb-2 text-muted">
         <span>Zone</span><span>Share of shots</span><span className="text-right">{abbr} FG%</span><span className="text-right">{compareLabel}</span>
       </div>
       {rows.map((z) => {
         const c = cmp.get(z.zone);
         return (
-          <div key={z.zone} className="grid grid-cols-[minmax(120px,1fr)_minmax(0,1.4fr)_70px_70px] items-center gap-3 border-b border-line py-3">
+          <div key={z.zone} className="row-hover grid grid-cols-[minmax(120px,1fr)_minmax(0,1.4fr)_70px_70px] items-center gap-3 border-b border-line py-3">
             <span className="display text-[20px] font-extrabold leading-tight tracking-[0.03em]">{zoneName(z.zone)}</span>
             <div className="flex flex-col gap-1">
               <div className="relative h-3 bg-soft"><div className="absolute inset-y-0 left-0 bg-accent" style={{ width: `${(z.share / max) * 100}%` }} /></div>
@@ -172,7 +172,7 @@ export function MonthHeatmap({ months }: { months: [string, number, number][] })
   const top = Math.max(1, ...months.map((m) => m[2]));
   return (
     <div className="flex flex-col">
-      <div className="label grid grid-cols-[52px_repeat(7,minmax(0,1fr))_44px] gap-[3px] border-b-[3px] border-ink pb-2 text-center">
+      <div className="label grid grid-cols-[52px_repeat(7,minmax(0,1fr))_44px] gap-[3px] border-b-[3px] border-ink pb-2 text-center text-muted">
         <span className="text-left">Team</span>
         {MONTHS.map(([, l]) => <span key={l}>{l}</span>)}
         <span>All</span>

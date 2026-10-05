@@ -5,6 +5,7 @@ import { ParamSelect } from "@/components/param-select";
 import { pageData } from "@/lib/db";
 import { dec3, one, ordinal, parseSeason, seasonOptions, shortDate, signed } from "@/lib/format";
 import { FACTOR_META, cap, zoneName } from "@/lib/insights";
+import { myTeam } from "@/lib/my-team";
 import { onColor, teamColor, teamTheme } from "@/lib/teams";
 import type { MatchupData, TeamRow } from "@/lib/types";
 
@@ -16,9 +17,9 @@ function Side({ t, dark, clutch }: { t: TeamRow; dark?: boolean; clutch?: { w: n
   const ink = onColor(bg);
   return (
     <div className="flex flex-col gap-3 px-4 pb-10 pt-8 md:px-12" style={{ background: dark ? "var(--ink)" : bg, color: dark ? "#fff" : ink }}>
-      <span className="display text-[clamp(96px,12vw,150px)]" style={dark ? { color: bg === "#000000" ? "#C4CED4" : bg } : undefined}>{t.abbr}</span>
+      <span className="display display-tight text-[clamp(96px,12vw,150px)]" style={dark ? { color: bg === "#000000" ? "#C4CED4" : bg } : undefined}>{t.abbr}</span>
       <span className="display text-[28px] font-extrabold tracking-[0.04em]">{t.name} · {t.w}-{t.l}</span>
-      <div className="grid grid-cols-3 gap-3 border-t-[3px] border-current pt-3">
+      <div className="grid grid-cols-3 gap-3 border-t border-current pt-3">
         {[["Net", signed(t.net)], ["Offense", t.ortg.toFixed(1)], ["Defense", t.drtg.toFixed(1)]].map(([l, v]) => (
           <div key={l} className="flex flex-col"><span className="label">{l}</span><span className="display text-[clamp(40px,4.5vw,60px)]">{v}</span></div>
         ))}
@@ -33,11 +34,23 @@ function Side({ t, dark, clutch }: { t: TeamRow; dark?: boolean; clutch?: { w: n
 
 export default async function MatchupScout({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
-  const d = await pageData<MatchupData>("matchup", [parseSeason(sp.season), one(sp.a), one(sp.b)]);
+  const mine = await myTeam();
+  const season = parseSeason(sp.season);
+  // Team A is always the team picked on the landing page. Only team B can change.
+  const teamA = mine?.abbr ?? null;
+  let teamB = one(sp.b)?.toUpperCase() ?? null;
+  if (teamB === teamA) teamB = null;
+  if (!teamB) {
+    // Default opponent: the net rating leader, or the runner-up when we are the leader
+    const lead = await pageData<MatchupData>("matchup", [season, null, null]);
+    teamB = (lead.a && lead.a.abbr !== teamA ? lead.a : lead.b)?.abbr ?? null;
+  }
+  const d = await pageData<MatchupData>("matchup", [season, teamA, teamB]);
   const { a, b } = d;
   if (!a || !b) return <Wrap className="py-20"><Empty>Pick two teams with games this season.</Empty></Wrap>;
 
-  const opts = d.teams.map((t) => ({ value: t.abbr, label: t.abbr }));
+  // Team B can be any team except our own
+  const opts = d.teams.filter((t) => t.abbr !== a.abbr).map((t) => ({ value: t.abbr, label: t.abbr }));
   const aWins = d.games.filter((g) => g.a_pts > g.b_pts).length;
   const bWins = d.games.length - aWins;
   const better = a.net >= b.net ? a : b;
@@ -71,8 +84,8 @@ export default async function MatchupScout({ searchParams }: { searchParams: Pro
       <section>
         <div className="flex flex-wrap items-center justify-center gap-3 bg-ink px-4 py-3 text-white">
           <span className="label">Matchup Scout · {d.seasonLabel}</span>
-          <ParamSelect name="a" label="Team A" value={a.abbr} options={opts} />
-          <ParamSelect name="b" label="Team B" value={b.abbr} options={opts} />
+          <span className="label border-2 border-current px-3 py-2">Your team · {a.abbr}</span>
+          <ParamSelect name="b" label="Opponent" value={b.abbr} options={opts} />
           <ParamSelect name="season" label="Season" value={String(d.season)} options={seasonOptions(d.seasons)} />
         </div>
         <div className="grid md:grid-cols-2">

@@ -1,16 +1,27 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { RemoteImage } from "./remote-image";
 import { isDemo } from "@/lib/db";
+import { myTeam } from "@/lib/my-team";
+import { logoUrl } from "@/lib/teams";
 import { NavTabs } from "./nav-tabs";
 
-export function SiteHeader() {
+export async function SiteHeader() {
+  const mine = await myTeam();
   return (
     <header>
       <div className="flex flex-wrap items-stretch justify-between bg-ink text-white">
-        <Link href="/" className="display bg-white px-5 py-3 text-[22px] tracking-[0.04em] text-ink md:px-7">
+        <Link href={mine ? "/team" : "/"} className="display bg-white px-5 py-3 text-[22px] tracking-[0.04em] text-ink md:px-7">
           Courtside
         </Link>
         <div className="label flex items-center gap-3 px-5 py-3 text-[#A7AEBB] md:px-7">
+          {mine ? (
+            <Link href="/" className="flex items-center gap-2 text-white hover:underline" title="Change team">
+              <RemoteImage src={logoUrl(mine.id)} alt="" className="h-6 w-6" />
+              <span>{mine.abbr}</span>
+              <span className="text-[#A7AEBB]">· Change team</span>
+            </Link>
+          ) : null}
           {isDemo ? <span className="bg-white px-2 py-0.5 text-ink">Demo snapshot</span> : null}
           <span>NBA analytics · nba_api</span>
         </div>

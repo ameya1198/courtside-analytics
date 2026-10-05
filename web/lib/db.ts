@@ -28,7 +28,7 @@ async function runLive<T>(name: PageQuery, params: (string | number | null)[]): 
 
 const cached = unstable_cache(
   async (name: PageQuery, params: (string | number | null)[]) => runLive(name, params),
-  ["page-query"],
+  ["page-query-v3"], // bump when a SQL file changes shape, so stale cached results are ignored
   { revalidate: 3600, tags: ["warehouse"] },
 );
 

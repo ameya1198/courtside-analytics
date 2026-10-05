@@ -3,6 +3,7 @@ import { Empty, Heading, Notice, Section, Wrap } from "@/components/blocks";
 import { Hero } from "@/components/hero";
 import { pageData } from "@/lib/db";
 import { longDate, one, signed } from "@/lib/format";
+import { myTeam } from "@/lib/my-team";
 import { teamTheme } from "@/lib/teams";
 import type { TonightData, TonightGame } from "@/lib/types";
 
@@ -17,7 +18,7 @@ const tipTime = (utc: string | null) =>
 const restLabel = (days: number | null, b2b: boolean) =>
   b2b ? "B2B" : days === null ? "1st game" : `${days}d rest`;
 
-function GameCard({ g }: { g: TonightGame }) {
+function GameCard({ g, mine }: { g: TonightGame; mine?: string }) {
   const played = g.final && g.homePts !== null && g.awayPts !== null;
   const homeWon = played && g.homePts! > g.awayPts!;
   const row = (abbr: string, pts: number | null, net: number | null, rest: number | null, b2b: boolean, won: boolean, home: boolean) => (
@@ -33,6 +34,7 @@ function GameCard({ g }: { g: TonightGame }) {
   );
   return (
     <div className="flex flex-col border-[3px] border-ink">
+      {mine ? <span className="label bg-ink px-4 py-1.5 text-white">Your team · {mine}</span> : null}
       {row(g.away, g.awayPts, g.awayNet, g.awayRest, g.awayB2B, played && !homeWon, false)}
       {row(g.home, g.homePts, g.homeNet, g.homeRest, g.homeB2B, homeWon, true)}
       <div className="flex flex-wrap justify-between gap-3 border-t-[3px] border-ink bg-soft px-4 py-2.5 font-mono text-[12px]">
@@ -54,10 +56,12 @@ function GameCard({ g }: { g: TonightGame }) {
 
 export default async function Tonight({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
+  const mine = await myTeam();
   const date = one(sp.date);
   const d = await pageData<TonightData>("tonight", [date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null]);
   if (!d.date || !d.games.length) return <Wrap className="py-20"><Empty>No games found for this date.</Empty></Wrap>;
 
+  const isMine = (g: { home: string; away: string }) => !!mine && (g.home === mine.abbr || g.away === mine.abbr);
   const n = d.games.length;
   const played = d.games.filter((g) => g.final && g.homePts !== null && g.awayPts !== null);
   const allPlayed = played.length === n;
@@ -86,7 +90,7 @@ export default async function Tonight({ searchParams }: { searchParams: Promise<
   else if (!d.isToday) notice = `Showing ${longDate(d.date)}${d.seasonType === "Playoffs" ? " (playoffs)" : ""}.`;
 
   return (
-    <div style={teamTheme(null)}>
+    <div style={teamTheme(mine?.abbr)}>
       {notice ? <Notice>{notice} Pick another date below.</Notice> : null}
       <Hero
         eyebrow={`Tonight · ${longDate(d.date)}`}
@@ -100,12 +104,12 @@ export default async function Tonight({ searchParams }: { searchParams: Promise<
         }
         side={
           allPlayed && topScorer ? (
-            <div className="flex max-w-[420px] flex-[1_1_300px] flex-col gap-1 border-t-[3px] border-current pb-12 pt-4">
-              <span className="display text-[84px]">{topScorer.pts}</span>
+            <div className="flex max-w-[420px] flex-[1_1_300px] flex-col gap-1 border-t-[3px] border-current pb-16 pt-4">
+              <span className="display display-tight text-[84px]">{topScorer.pts}</span>
               <span className="text-[17px]">points from {topScorer.name} ({topScorer.team}), the top scorer of the night.</span>
             </div>
           ) : closest ? (
-            <div className="flex max-w-[420px] flex-[1_1_300px] flex-col gap-1 border-t-[3px] border-current pb-12 pt-4">
+            <div className="flex max-w-[420px] flex-[1_1_300px] flex-col gap-1 border-t-[3px] border-current pb-16 pt-4">
               <span className="label">Closest matchup on paper</span>
               <span className="display text-[64px]">{closest.g.away} @ {closest.g.home}</span>
               <span className="text-[17px]">Net ratings {closest.gap.toFixed(1)} apart. {ratingNote}</span>
@@ -129,7 +133,9 @@ export default async function Tonight({ searchParams }: { searchParams: Promise<
             caption={`Away team on top, home team below. ${allPlayed ? "The winner is filled." : "Tip-off times are US Eastern."} ${ratingNote}`}
           />
           <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,360px),1fr))] gap-4">
-            {d.games.map((g) => <GameCard key={g.id} g={g} />)}
+            {[...d.games].sort((x, y) => Number(isMine(y)) - Number(isMine(x))).map((g) => (
+              <GameCard key={g.id} g={g} mine={isMine(g) && mine ? `${mine.city} ${mine.name}` : undefined} />
+            ))}
           </div>
         </Section>
 
@@ -138,7 +144,7 @@ export default async function Tonight({ searchParams }: { searchParams: Promise<
             <Heading title={`Biggest margin: ${results[0].winner} by ${results[0].m}.`} caption="Winning margin by game. The accent colour means the home team won." />
             <div className="flex flex-col">
               {results.map((x) => (
-                <div key={x.g.id} className="grid grid-cols-[150px_minmax(0,1fr)_56px] items-center gap-3 border-b border-line py-2">
+                <div key={x.g.id} className="row-hover grid grid-cols-[150px_minmax(0,1fr)_56px] items-center gap-3 border-b border-line py-2">
                   <span className="display text-[22px] font-extrabold tracking-[0.03em]">{x.winner} over {x.loser}</span>
                   <div className="h-5"><div className="h-5" style={{ width: `${(x.m / Math.max(1, results[0].m)) * 100}%`, background: x.winner === x.g.home ? "var(--accent)" : "var(--ink)" }} /></div>
                   <span className="text-right font-mono text-[14px] font-medium">+{x.m}</span>

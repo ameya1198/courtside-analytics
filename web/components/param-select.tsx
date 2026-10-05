@@ -12,10 +12,10 @@ export function ParamSelect({ name, label, value, options }: { name: string; lab
   const params = useSearchParams();
   const [pending, start] = useTransition();
   return (
-    <label className="label inline-flex items-center gap-2 border-2 border-current px-3 py-2" data-pending={pending || undefined}>
+    <label className="label relative inline-flex items-center gap-2 border-2 border-current px-3 py-2 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-current" data-pending={pending || undefined}>
       <span className="opacity-80">{label}</span>
       <select
-        className="cursor-pointer bg-transparent font-mono text-[13px] font-medium uppercase outline-none [&>option]:text-ink"
+        className="cursor-pointer appearance-none bg-transparent pr-5 font-mono text-[13px] font-medium uppercase outline-none [&>option]:text-ink"
         value={value}
         onChange={(e) => {
           const next = new URLSearchParams(params.toString());
@@ -29,6 +29,7 @@ export function ParamSelect({ name, label, value, options }: { name: string; lab
           </option>
         ))}
       </select>
+      <span aria-hidden className="pointer-events-none absolute right-3 top-1/2 size-[7px] -translate-y-[70%] rotate-45 border-b-2 border-r-2 border-current" />
       {pending ? <span aria-live="polite">…</span> : null}
     </label>
   );

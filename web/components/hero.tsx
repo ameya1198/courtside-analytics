@@ -3,7 +3,7 @@ import { RemoteImage } from "./remote-image";
 
 /** The coloured band at the top of each page. Takes the colour of the team on screen. */
 export function Hero({
-  eyebrow, title, controls, children, watermark, side,
+  eyebrow, title, controls, children, watermark, side, portrait,
 }: {
   eyebrow: string;
   title: React.ReactNode;
@@ -11,19 +11,21 @@ export function Hero({
   children?: React.ReactNode;
   watermark?: { src: string; alt: string };
   side?: React.ReactNode;
+  portrait?: React.ReactNode; // large cut-out anchored to the bottom right of the band, bleeds past the content column
 }) {
   return (
-    <section className="relative overflow-hidden bg-hero text-hero-ink">
+    <section className="relative overflow-hidden bg-hero text-hero-ink shadow-[inset_0_-1px_0_rgba(0,0,0,0.22)]">
       {watermark ? (
         <div aria-hidden className="pointer-events-none absolute right-[3%] top-1/2 hidden w-[44%] max-w-[560px] -translate-y-1/2 opacity-[0.14] md:block">
           <RemoteImage src={watermark.src} alt="" className="h-auto w-full" />
         </div>
       ) : null}
-      <Wrap className="relative flex flex-wrap items-end gap-x-10 gap-y-6 pt-10">
-        <div className="flex min-w-0 flex-[1_1_600px] flex-col gap-7 pb-12">
+      {portrait ? <div className="pointer-events-none absolute bottom-0 right-[3vw] top-6 hidden lg:flex">{portrait}</div> : null}
+      <Wrap className="relative z-10 flex flex-wrap items-end gap-x-10 gap-y-6 pt-10">
+        <div className={`flex min-w-0 flex-[1_1_600px] flex-col gap-7 pb-16 ${portrait ? "lg:max-w-[704px]" : ""}`}>
           <div className="flex flex-col gap-2">
             <span className="label text-[13px]">{eyebrow}</span>
-            <h1 className="display text-[clamp(52px,8vw,120px)]">{title}</h1>
+            <h1 className="display display-tight text-[clamp(52px,8vw,120px)]">{title}</h1>
             {controls ? <div className="mt-3 flex flex-wrap gap-2">{controls}</div> : null}
           </div>
           {children}

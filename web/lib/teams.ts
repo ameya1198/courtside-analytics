@@ -97,3 +97,39 @@ export function teamColor(abbr: string) {
 export const logoUrl = (teamId: number) => `https://cdn.nba.com/logos/nba/${teamId}/primary/L/logo.svg`;
 export const headshotUrl = (playerId: number) =>
   `https://cdn.nba.com/headshots/nba/latest/1040x760/${playerId}.png`;
+
+// All 30 teams, for the team picker. Ids are the NBA's own, which the logo images use.
+export const TEAMS = [
+  { abbr: "ATL", id: 1610612737, city: "Atlanta", name: "Hawks", conf: "East" },
+  { abbr: "BOS", id: 1610612738, city: "Boston", name: "Celtics", conf: "East" },
+  { abbr: "BKN", id: 1610612751, city: "Brooklyn", name: "Nets", conf: "East" },
+  { abbr: "CHA", id: 1610612766, city: "Charlotte", name: "Hornets", conf: "East" },
+  { abbr: "CHI", id: 1610612741, city: "Chicago", name: "Bulls", conf: "East" },
+  { abbr: "CLE", id: 1610612739, city: "Cleveland", name: "Cavaliers", conf: "East" },
+  { abbr: "DET", id: 1610612765, city: "Detroit", name: "Pistons", conf: "East" },
+  { abbr: "IND", id: 1610612754, city: "Indiana", name: "Pacers", conf: "East" },
+  { abbr: "MIA", id: 1610612748, city: "Miami", name: "Heat", conf: "East" },
+  { abbr: "MIL", id: 1610612749, city: "Milwaukee", name: "Bucks", conf: "East" },
+  { abbr: "NYK", id: 1610612752, city: "New York", name: "Knicks", conf: "East" },
+  { abbr: "ORL", id: 1610612753, city: "Orlando", name: "Magic", conf: "East" },
+  { abbr: "PHI", id: 1610612755, city: "Philadelphia", name: "76ers", conf: "East" },
+  { abbr: "TOR", id: 1610612761, city: "Toronto", name: "Raptors", conf: "East" },
+  { abbr: "WAS", id: 1610612764, city: "Washington", name: "Wizards", conf: "East" },
+  { abbr: "DAL", id: 1610612742, city: "Dallas", name: "Mavericks", conf: "West" },
+  { abbr: "DEN", id: 1610612743, city: "Denver", name: "Nuggets", conf: "West" },
+  { abbr: "GSW", id: 1610612744, city: "Golden State", name: "Warriors", conf: "West" },
+  { abbr: "HOU", id: 1610612745, city: "Houston", name: "Rockets", conf: "West" },
+  { abbr: "LAC", id: 1610612746, city: "Los Angeles", name: "Clippers", conf: "West" },
+  { abbr: "LAL", id: 1610612747, city: "Los Angeles", name: "Lakers", conf: "West" },
+  { abbr: "MEM", id: 1610612763, city: "Memphis", name: "Grizzlies", conf: "West" },
+  { abbr: "MIN", id: 1610612750, city: "Minnesota", name: "Timberwolves", conf: "West" },
+  { abbr: "NOP", id: 1610612740, city: "New Orleans", name: "Pelicans", conf: "West" },
+  { abbr: "OKC", id: 1610612760, city: "Oklahoma City", name: "Thunder", conf: "West" },
+  { abbr: "PHX", id: 1610612756, city: "Phoenix", name: "Suns", conf: "West" },
+  { abbr: "POR", id: 1610612757, city: "Portland", name: "Trail Blazers", conf: "West" },
+  { abbr: "SAC", id: 1610612758, city: "Sacramento", name: "Kings", conf: "West" },
+  { abbr: "SAS", id: 1610612759, city: "San Antonio", name: "Spurs", conf: "West" },
+  { abbr: "UTA", id: 1610612762, city: "Utah", name: "Jazz", conf: "West" },
+] as const;
+
+export const teamInfo = (abbr: string | null | undefined) => TEAMS.find((t) => t.abbr === abbr);

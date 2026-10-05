@@ -8,8 +8,9 @@ import { RemoteImage } from "@/components/remote-image";
 import { pageData } from "@/lib/db";
 import { dec3, one, ordinal, parseSeason, seasonOptions, shortDate, signed } from "@/lib/format";
 import { formHeadline, money, percentileHeadline } from "@/lib/insights";
+import { myTeam } from "@/lib/my-team";
 import { headshotUrl, teamTheme } from "@/lib/teams";
-import type { PlayerData } from "@/lib/types";
+import type { PlayerData, PoolRow } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Player Profile" };
 export const revalidate = 3600;
@@ -17,17 +18,28 @@ export const revalidate = 3600;
 export default async function PlayerProfile({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
   const id = Number(one(sp.player));
-  const d = await pageData<PlayerData>("player", [parseSeason(sp.season), Number.isFinite(id) && id > 0 ? id : null]);
+  const season = parseSeason(sp.season);
+  const mine = await myTeam();
+  let d = await pageData<PlayerData>("player", [season, Number.isFinite(id) && id > 0 ? id : null]);
+  // Only players who appeared for the chosen team that season (traded players count for both teams)
+  const onTeam = (r: PoolRow) => !mine || r[7].includes(mine.abbr);
+  if (mine && !d.pool?.some((r) => r[0] === d.player?.player_id && onTeam(r))) {
+    // The pool is sorted ranked players first, then by points: open the team's best ranked player
+    const top = d.pool?.find(onTeam);
+    if (top) d = await pageData<PlayerData>("player", [season, top[0]]);
+  }
   const p = d.player;
+  if (mine && p && !d.pool?.some((r) => r[0] === p.player_id && onTeam(r))) return <Wrap className="py-20"><Empty>No {mine.name} players have played this season yet.</Empty></Wrap>;
   if (!p) return <Wrap className="py-20"><Empty>No player data for this season yet.</Empty></Wrap>;
 
-  const pool = d.pool ?? [];
+  // The dropdown lists every player who appeared for the chosen team that season
+  const pool = (d.pool ?? []).filter(onTeam);
   const pc = d.percentiles;
   const rimShare = d.shots.total ? d.shots.rimFga / d.shots.total : 0;
   const rimFg = d.shots.rimFga ? d.shots.rimFgm / d.shots.rimFga : 0;
   const options = pool.some((r) => r[0] === p.player_id)
-    ? pool.map((r) => ({ value: String(r[0]), label: `${r[1]} · ${r[2]}` }))
-    : [{ value: String(p.player_id), label: `${p.name} · ${p.team}` }, ...pool.map((r) => ({ value: String(r[0]), label: `${r[1]} · ${r[2]}` }))];
+    ? pool.map((r) => ({ value: String(r[0]), label: `${r[1]} · ${r[7].join("/")}` }))
+    : [{ value: String(p.player_id), label: `${p.name} · ${p.team}` }, ...pool.map((r) => ({ value: String(r[0]), label: `${r[1]} · ${r[7].join("/")}` }))];
 
   return (
     <div style={teamTheme(p.team)}>
@@ -40,8 +52,12 @@ export default async function PlayerProfile({ searchParams }: { searchParams: Pr
             <ParamSelect name="season" label="Season" value={String(d.season)} options={seasonOptions(d.seasons)} />
           </>
         }
+        // Large photo on wide screens (lg and up), the smaller inline one below that
+        portrait={
+          <RemoteImage src={headshotUrl(p.player_id)} alt={p.name} className="h-full w-auto max-w-[44vw] object-contain object-bottom" />
+        }
         side={
-          <div className="relative flex min-w-[260px] flex-[0_1_440px] items-end justify-center self-stretch">
+          <div className="relative flex min-w-[260px] flex-[0_1_440px] items-end justify-center self-stretch lg:hidden">
             <RemoteImage src={headshotUrl(p.player_id)} alt={p.name} className="relative z-10 h-auto w-full max-w-[440px]" />
           </div>
         }

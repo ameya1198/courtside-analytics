@@ -37,7 +37,8 @@ export type Clutch = {
 };
 
 // [player_id, name, team, ppg, p36, ts]
-export type PoolRow = [number, string, string, number, number, number];
+// id, name, latest team, ppg, points per 36, true shooting, ranked (qualified) or not, every team that season
+export type PoolRow = [number, string, string, number, number, number, boolean, string[]];
 
 export type PlayerData = {
   season: number; seasonLabel: string; seasons: number[];
@@ -69,7 +70,8 @@ export type ValueData = {
 
 export type RestData = {
   season: number; seasonLabel: string; seasons: number[]; historyFrom: number; historyTo: number;
-  buckets: { rest: number; games: number; win_pct: number; margin: number }[];
+  team?: { abbr: string; name: string } | null;
+  buckets: { rest: number; games: number; win_pct: number; margin: number; league_win_pct?: number }[];
   gaps: { abbr: string; b2b_games: number; b2b_pct: number | null; rested_pct: number | null }[];
   months: [string, number, number][];
 };

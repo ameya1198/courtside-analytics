@@ -49,7 +49,11 @@ html {
 body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  /* Digits share one width so stat columns line up and don't shift between seasons. */
+  font-variant-numeric: tabular-nums;
 }
+
+a { text-underline-offset: 4px; }
 
 .display {
   font-family: var(--font-display);
@@ -59,12 +63,24 @@ body {
   text-transform: uppercase;
 }
 
+/* Big display numbers and names (80px and up) read better slightly tighter. */
+.display-tight { letter-spacing: -0.01em; }
+
 .label {
   font-family: var(--font-mono);
   font-weight: 500;
-  font-size: 12px;
-  letter-spacing: 0.1em;
+  font-size: 11px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
+}
+
+/* Table and bar rows: soft fill on hover that bleeds 8px past the row without shifting it. */
+.row-hover {
+  transition: background-color 150ms, box-shadow 150ms;
+}
+.row-hover:hover {
+  background: var(--soft);
+  box-shadow: -8px 0 0 var(--soft), 8px 0 0 var(--soft);
 }
 
 /* Chart panels: Recharts text and grid follow the panel colours. */

@@ -5,8 +5,9 @@ import { RollingMarginChart } from "@/components/charts/recharts";
 import { Hero, KpiRow } from "@/components/hero";
 import { ParamSelect } from "@/components/param-select";
 import { pageData } from "@/lib/db";
-import { ordinal, one, parseSeason, seasonOptions, signed } from "@/lib/format";
+import { ordinal, parseSeason, seasonOptions, signed } from "@/lib/format";
 import { clutchHeadline, factorsHeadline, rolling, rollingHeadline, splits, splitsHeadline, zonesHeadline } from "@/lib/insights";
+import { myTeam } from "@/lib/my-team";
 import { logoUrl, teamTheme } from "@/lib/teams";
 import type { TeamData } from "@/lib/types";
 
@@ -15,7 +16,9 @@ export const revalidate = 3600;
 
 export default async function TeamReport({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
-  const d = await pageData<TeamData>("team", [parseSeason(sp.season), one(sp.team)]);
+  const mine = await myTeam();
+  // Always the team picked on the landing page
+  const d = await pageData<TeamData>("team", [parseSeason(sp.season), mine?.abbr ?? null]);
   const t = d.team;
   if (!t) return <Wrap className="py-20"><Empty>No games for this team and season yet.</Empty></Wrap>;
 
@@ -38,7 +41,6 @@ export default async function TeamReport({ searchParams }: { searchParams: Promi
         watermark={{ src: logoUrl(t.team_id), alt: `${t.name} logo` }}
         controls={
           <>
-            <ParamSelect name="team" label="Team" value={t.abbr} options={d.teams.map((x) => ({ value: x.abbr, label: x.abbr }))} />
             <ParamSelect name="season" label="Season" value={String(d.season)} options={seasonOptions(d.seasons)} />
           </>
         }

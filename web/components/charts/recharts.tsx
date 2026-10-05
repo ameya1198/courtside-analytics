@@ -15,7 +15,9 @@ export function ThreeRateChart({ data }: { data: { label: string; rate: number }
   return (
     <ChartContainer config={config} className="aspect-auto h-[320px] w-full">
       <BarChart data={rows} margin={{ top: 28, right: 4, left: 4, bottom: 0 }}>
+        <CartesianGrid vertical={false} stroke="var(--panel-grid)" strokeDasharray="3 3" strokeOpacity={0.7} />
         <XAxis dataKey="label" {...axis} interval={0} tickMargin={10} />
+        <YAxis hide />
         <ChartTooltip cursor={false} content={<ChartTooltipContent hideIndicator formatter={(v) => `${v}% of shots`} />} />
         <Bar dataKey="pct" radius={0} isAnimationActive={false}>
           {rows.map((r, i) => (
@@ -36,7 +38,7 @@ export function RollingMarginChart({ data }: { data: { game: number; value: numb
   return (
     <ChartContainer config={config} className="aspect-auto h-[340px] w-full">
       <LineChart data={data} margin={{ top: 28, right: 24, left: 0, bottom: 4 }}>
-        <CartesianGrid vertical={false} stroke="var(--panel-grid)" />
+        <CartesianGrid vertical={false} stroke="var(--panel-grid)" strokeDasharray="3 3" strokeOpacity={0.7} />
         <XAxis dataKey="game" {...axis} tickFormatter={(g) => `G${g}`} minTickGap={24} />
         <YAxis {...axis} width={44} tickFormatter={(v) => (v > 0 ? `+${v}` : `${v}`)} />
         <ReferenceLine y={0} stroke="var(--panel-muted)" strokeDasharray="4 4" />
@@ -87,7 +89,7 @@ export function VolumeEfficiencyChart({
   return (
     <ChartContainer config={config} className="aspect-auto h-[380px] w-full">
       <ScatterChart margin={{ top: 24, right: 16, left: 0, bottom: 16 }}>
-        <CartesianGrid stroke="var(--panel-grid)" />
+        <CartesianGrid stroke="var(--panel-grid)" strokeDasharray="3 3" strokeOpacity={0.7} />
         <XAxis type="number" dataKey="p36" name="Points per 36" {...axis} domain={[x0, x1]} ticks={step(x0, x1)}
           label={{ value: "POINTS PER 36 MINUTES", position: "insideBottom", offset: -12, fill: "var(--panel-muted)", fontFamily: "var(--font-mono)", fontSize: 11 }} />
         <YAxis type="number" dataKey="tsPct" name="True shooting" {...axis} width={44} domain={[y0, y1]} ticks={step(y0, y1)} tickFormatter={(v) => `${v}%`} />
@@ -107,7 +109,7 @@ export function VolumeEfficiencyChart({
 }
 
 /** Win rate by days of rest. */
-export function RestBucketsChart({ data }: { data: { label: string; win: number; margin: number; games: number }[] }) {
+export function RestBucketsChart({ data }: { data: { label: string; win: number; margin: number; games: number; league?: number }[] }) {
   const config = { win: { label: "Win rate", color: "var(--panel-ink)" } } satisfies ChartConfig;
   return (
     <ChartContainer config={config} className="aspect-auto h-[320px] w-full">
@@ -115,7 +117,7 @@ export function RestBucketsChart({ data }: { data: { label: string; win: number;
         <XAxis dataKey="label" {...axis} interval={0} tickMargin={10} tick={{ ...axis.tick, fontSize: 13 }} />
         <YAxis hide domain={[0, 60]} />
         <ChartTooltip cursor={false} content={<ChartTooltipContent hideIndicator
-          formatter={(_, __, item) => `${item.payload.win}% wins · ${item.payload.margin > 0 ? "+" : ""}${item.payload.margin} margin · ${item.payload.games.toLocaleString()} games`} />} />
+          formatter={(_, __, item) => `${item.payload.win}% wins · ${item.payload.margin > 0 ? "+" : ""}${item.payload.margin} margin · ${item.payload.games.toLocaleString()} games${item.payload.league !== undefined ? ` · league ${item.payload.league}%` : ""}`} />} />
         <Bar dataKey="win" isAnimationActive={false}>
           {data.map((d, i) => (
             <Cell key={d.label} fill={i === 0 ? "var(--warn)" : "var(--panel-dot)"} />
@@ -144,7 +146,7 @@ export function SalaryQuadrantChart({
   return (
     <ChartContainer config={config} className="aspect-auto h-[460px] w-full">
       <ScatterChart margin={{ top: 24, right: 24, left: 0, bottom: 20 }}>
-        <CartesianGrid stroke="var(--panel-grid)" />
+        <CartesianGrid stroke="var(--panel-grid)" strokeDasharray="3 3" strokeOpacity={0.7} />
         <XAxis type="number" dataKey="salaryM" {...axis} domain={[0, xMax]} tickFormatter={(v) => `$${v}M`}
           label={{ value: "SALARY", position: "insideBottom", offset: -14, fill: "var(--panel-muted)", fontFamily: "var(--font-mono)", fontSize: 11 }} />
         <YAxis type="number" dataKey="fppg" {...axis} width={44} domain={[0, yMax]}

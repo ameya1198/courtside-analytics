@@ -124,7 +124,7 @@ function ChartTooltipContent({
   return (
     <div
       className={cn(
-        "grid min-w-[8rem] items-start gap-1.5 border border-black/15 bg-white px-2.5 py-1.5 text-xs text-[#0B0D12] shadow-xl",
+        "grid min-w-[8rem] items-start gap-1.5 bg-[#0B0D12] px-2.5 py-2 font-mono text-xs text-white",
         className,
       )}
     >
@@ -164,7 +164,7 @@ function ChartTooltipContent({
                   <div className={cn("flex flex-1 justify-between leading-none", nestLabel ? "items-end" : "items-center")}>
                     <div className="grid gap-1.5">
                       {nestLabel ? tooltipLabel : null}
-                      <span className="text-[#444B58]">{itemConfig?.label || item.name}</span>
+                      <span className="text-[#A7AEBB]">{itemConfig?.label || item.name}</span>
                     </div>
                     {item.value !== undefined && (
                       <span className="font-mono font-medium tabular-nums">
