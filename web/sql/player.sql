@@ -87,6 +87,16 @@ select json_build_object(
       'pts_rank', c.pts_rank, 'minutes', c.minutes::float)
     from marts.mart_player_clutch c, s, pick
     where c.season = s.season and c.season_type = 'Regular Season' and c.player_id = pick.player_id),
+  -- Defense (mart_player_defense). A traded player has a row per team: show the team he played most for.
+  'defense', (select json_build_object('team', d.team_abbreviation, 'games', d.games, 'on_min', d.on_min::float,
+      'on_drtg', d.on_drtg::float, 'off_drtg', d.off_drtg::float, 'onoff_drtg', d.onoff_drtg::float,
+      'dfga', d.dfga_overall::float, 'dfg_diff', d.dfg_diff_overall::float,
+      'dfga_rim', d.dfga_rim::float, 'dfg_diff_rim', d.dfg_diff_rim::float, 'dfg_diff_three', d.dfg_diff_three::float,
+      'qualified', d.is_qualified, 'onoff_pctile', d.onoff_pctile, 'dfg_pctile', d.dfg_pctile,
+      'contests_pctile', d.contests_pctile, 'deflections_pctile', d.deflections_pctile)
+    from (select * from marts.mart_player_defense m, s, pick
+          where m.season = s.season and m.player_id = pick.player_id
+          order by m.on_min desc limit 1) d),
   'shots', json_build_object(
     'total', (select count(*) from shots),
     'rimFga', (select count(*) from shots where shot_distance <= 4),

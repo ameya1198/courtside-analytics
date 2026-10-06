@@ -2,7 +2,19 @@
 import { cn } from "@/lib/utils";
 import { dec3, ordinal, pct } from "@/lib/format";
 import { FACTOR_META, zoneName } from "@/lib/insights";
-import type { Factors, Zone } from "@/lib/types";
+import type { Zone } from "@/lib/types";
+
+/** One bar growing left or right from a centre line, sized for a table cell. Positive goes right. */
+export function DivergingBar({ value, max, tone }: { value: number; max: number; tone: "accent" | "warn" | "ink" }) {
+  const half = Math.min(50, (Math.abs(value) / max) * 50);
+  const color = tone === "warn" ? "var(--warn)" : tone === "ink" ? "var(--ink)" : "var(--accent)";
+  return (
+    <div className="relative h-[14px]">
+      <div className="absolute inset-y-[-4px] left-1/2 border-l border-ink" />
+      <div className="absolute top-0 h-[14px] rounded-[3px]" style={{ background: color, width: `${half}%`, left: value >= 0 ? "50%" : `${50 - half}%` }} />
+    </div>
+  );
+}
 
 /** Four factors for one team against the league, with ranks out of 30. */
 export function FactorTable({ team, league, ranks, abbr, meta = FACTOR_META }: {

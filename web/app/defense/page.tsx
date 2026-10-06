@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
-import { Empty, Heading, Placeholder, Section, Wrap } from "@/components/blocks";
+import { Empty, Heading, Section, Wrap } from "@/components/blocks";
 import { ChartCard } from "@/components/chart-card";
-import { FactorTable, ShotHeatmap, ZoneRows } from "@/components/charts/html";
+import { DivergingBar, FactorTable, ShotHeatmap, ZoneRows } from "@/components/charts/html";
 import { DefRatingChart, HorizontalBarChart } from "@/components/charts/recharts";
 import { Hero, KpiRow } from "@/components/hero";
 import { ParamSelect } from "@/components/param-select";
 import { pageData } from "@/lib/db";
 import { one, ordinal, parseSeason, pct, seasonOptions, signed } from "@/lib/format";
-import { DEF_FACTOR_META, defFactorsHeadline, defPlayersHeadline, defRolling, defTrendHeadline, defZonesHeadline } from "@/lib/insights";
+import {
+  DEF_FACTOR_META, MISC_META, defFactorsHeadline, defImpactHeadline, defMiscHeadline, defPlayersHeadline, defRolling,
+  defTrendHeadline, defZonesHeadline, dfgPoints, impactRanking, money,
+} from "@/lib/insights";
 import { myTeam } from "@/lib/my-team";
 import { logoUrl, teamTheme } from "@/lib/teams";
 import type { DefenseData } from "@/lib/types";
@@ -38,6 +41,9 @@ export default async function Defense({ searchParams }: { searchParams: Promise<
   ];
 
   const spread = Math.max(1, ...d.ranking.map(([, r]) => Math.abs(d.leagueDrtg - r)));
+  const impact = impactRanking(d.players);
+  const impactMax = Math.max(4, ...impact.map((p) => Math.abs(p.onoff_drtg!)));
+  const misc = d.misc ?? null;
 
   return (
     <div style={teamTheme(t.abbr)}>
@@ -161,11 +167,80 @@ export default async function Defense({ searchParams }: { searchParams: Promise<
           ) : (
             <Empty>No rotation players yet this season.</Empty>
           )}
-          <div className="grid gap-4 md:grid-cols-2">
-            <Placeholder title="On/off defensive impact" need="Points allowed per 100 with each player on the court against off it. Loads in phase 2." />
-            <Placeholder title="Defended shooting" need="Opponent FG% when he is the closest defender, against what those shooters usually hit. Loads in phase 2." />
-          </div>
         </Section>
+
+        {/* Defensive impact: on/off and defended shooting for qualified players */}
+        <Section className="flex flex-col gap-6">
+          <Heading
+            title={defImpactHeadline(d.players, t.name)}
+            caption="On/off is the points the team allows per 100 possessions with him off the court, minus with him on. Positive means the team defends better when he plays. Defended FG% is how opponents shoot when he is the closest defender, against what those shooters usually hit. Negative is good. Players with 500+ minutes and 20+ games. On/off depends on who he plays with, so treat it as a signal, not proof."
+          />
+          {impact.length ? (
+            <div className="overflow-x-auto">
+              <div className="min-w-[980px]">
+                <div className="label grid grid-cols-[minmax(180px,1.4fr)_minmax(150px,1.3fr)_repeat(6,minmax(70px,1fr))] gap-3 border-b-[3px] border-ink pb-2 text-muted">
+                  <span>Player</span><span>On/off, per 100</span>
+                  <span className="text-right">Defended FG%</span><span className="text-right">At the rim</span><span className="text-right">On threes</span>
+                  <span className="text-right">Contests/36</span><span className="text-right">Deflections/36</span><span className="text-right">Salary</span>
+                </div>
+                {impact.map((p) => {
+                  const diff = (v: number | null | undefined) => (v === null || v === undefined ? (
+                    <span className="text-right font-mono text-[15px] text-muted">-</span>
+                  ) : (
+                    <span className="text-right font-mono text-[15px]" style={{ color: v < 0 ? "var(--accent)" : "var(--warn)" }}>{dfgPoints(v)}</span>
+                  ));
+                  return (
+                    <div key={p.player_id} className="row-hover grid grid-cols-[minmax(180px,1.4fr)_minmax(150px,1.3fr)_repeat(6,minmax(70px,1fr))] items-center gap-3 border-b border-line py-3">
+                      <a href={`/player?player=${p.player_id}&season=${d.season}`} className="display truncate text-[22px] font-extrabold tracking-[0.02em] hover:underline">{p.name}</a>
+                      <div className="grid grid-cols-[minmax(0,1fr)_52px] items-center gap-2">
+                        <DivergingBar value={p.onoff_drtg!} max={impactMax} tone={p.onoff_drtg! >= 0 ? "accent" : "warn"} />
+                        <span className="text-right font-mono text-[15px] font-medium">{signed(p.onoff_drtg!)}</span>
+                      </div>
+                      {diff(p.dfg_diff)}
+                      {diff(p.dfg_diff_rim)}
+                      {diff(p.dfg_diff_three)}
+                      <span className="text-right font-mono text-[15px]">{p.contests36?.toFixed(1) ?? "-"}</span>
+                      <span className="text-right font-mono text-[15px]">{p.deflections36?.toFixed(1) ?? "-"}</span>
+                      <span className="text-right font-mono text-[15px]">{p.salary ? money(p.salary) : "-"}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <Empty>No player has 500 minutes and 20 games for {t.abbr} yet this season.</Empty>
+          )}
+          {impact.length ? (
+            <span className="text-[13px] text-muted">
+              Shooting columns are percentage points against the shooters&apos; usual rate. Negative numbers, in the team colour, mean opponents shot worse than usual. Defended shooting covers his whole season, including games for another team.
+            </span>
+          ) : null}
+        </Section>
+
+        {/* Where opponents score */}
+        {misc ? (
+          <Section className="flex flex-col gap-6">
+            <Heading
+              title={defMiscHeadline(misc, t.abbr)}
+              caption="Points opponents score per game four ways, with the league rank. Rank 1 allows the fewest."
+            />
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {MISC_META.map((m) => {
+                const value = misc[m.key];
+                const rank = misc[`${m.key}_rank`];
+                const tone = rank <= 5 ? "var(--accent)" : rank >= 21 ? "var(--warn)" : "var(--ink)";
+                return (
+                  <div key={m.key} className="flex flex-col gap-1 border border-line p-4" style={{ borderTop: `4px solid ${tone}` }}>
+                    <span className="label">{m.label}</span>
+                    <span className="display text-[56px] leading-none" style={{ color: tone }}>{value.toFixed(1)}</span>
+                    <span className="font-mono text-[13px]">{ordinal(rank)} of 30 · league {misc.league[m.key].toFixed(1)}</span>
+                    <span className="text-[13px] text-muted">Per game, {m.hint}.</span>
+                  </div>
+                );
+              })}
+            </div>
+          </Section>
+        ) : null}
       </Wrap>
     </div>
   );

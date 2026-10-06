@@ -1,7 +1,7 @@
 // Headlines are written from the data on every request, so they change as games are played.
 // Each one is a single sentence that points at something a decision maker can act on.
 import { ordinal, pct, signed } from "./format";
-import type { Clutch, DefenseData, Factors, PlayerData, RestData, TeamData, TeamGame, Zone } from "./types";
+import type { Clutch, DefenseData, DefenseMisc, DefensePlayer, Factors, PlayerData, RestData, TeamData, TeamGame, Zone } from "./types";
 
 const ZONE_NAMES: Record<string, string> = {
   "Above the Break 3": "Above-the-break threes",
@@ -202,4 +202,48 @@ export function defPlayersHeadline(players: DefenseData["players"]) {
   const stl = by("stl36"), blk = by("blk36");
   if (stl.player_id === blk.player_id) return `${stl.name} leads in steals and blocks per 36 minutes.`;
   return `${stl.name} creates turnovers (${stl.stl36.toFixed(1)} steals per 36). ${blk.name} protects the rim (${blk.blk36.toFixed(1)} blocks).`;
+}
+
+/** Defended FG% against expected, as percentage points ("-5.1"). Negative means shooters did worse. */
+export const dfgPoints = (diff: number) => signed(diff * 100);
+
+/** Qualified players with on/off data, best defensive impact first. */
+export function impactRanking(players: DefensePlayer[]) {
+  return players
+    .filter((p) => p.qualified && p.onoff_drtg !== null && p.onoff_drtg !== undefined)
+    .sort((a, b) => b.onoff_drtg! - a.onoff_drtg!);
+}
+
+/** One sentence on who moves the defense, e.g. "Alex Caruso is worth 7.2 points per 100 on defense. ..." */
+export function defImpactHeadline(players: DefensePlayer[], teamName: string) {
+  const ranked = impactRanking(players);
+  const top = ranked[0];
+  if (!top) return `On/off numbers show once ${teamName} players reach 500 minutes.`;
+  const guard = top.dfg_diff === null || top.dfg_diff === undefined
+    ? ""
+    : top.dfg_diff < 0
+      ? ` Opponents shoot ${Math.abs(top.dfg_diff * 100).toFixed(1)} points worse when he guards them.`
+      : ` Shooters still hit ${(top.dfg_diff * 100).toFixed(1)} points better than usual against him.`;
+  if (top.onoff_drtg! <= 0) {
+    return `No ${teamName} player lowers the points allowed when he plays. ${top.name} comes closest at ${signed(top.onoff_drtg!)}.${guard}`;
+  }
+  return `${top.name} is worth ${top.onoff_drtg!.toFixed(1)} points per 100 possessions on defense.${guard}`;
+}
+
+export const MISC_META: { key: "off_tov" | "second_chance" | "fast_break" | "paint"; label: string; hint: string }[] = [
+  { key: "off_tov", label: "Points off turnovers", hint: "scored right after we give the ball away" },
+  { key: "second_chance", label: "Second-chance points", hint: "scored after an offensive rebound" },
+  { key: "fast_break", label: "Fast-break points", hint: "scored in transition, before we set up" },
+  { key: "paint", label: "Points in the paint", hint: "scored inside the lane" },
+];
+
+/** Headline for the "where they score on us" strip: name the biggest leak, or the strongest area. */
+export function defMiscHeadline(misc: DefenseMisc, abbr: string) {
+  const items = MISC_META.map((m) => ({ ...m, value: misc[m.key], rank: misc[`${m.key}_rank`] }));
+  const worst = items.reduce((a, b) => (b.rank > a.rank ? b : a));
+  if (worst.rank >= 21) {
+    return `${worst.label} are the leak: ${abbr} allows ${worst.value.toFixed(1)} a game, ${ordinal(worst.rank)} of 30. Fix that first.`;
+  }
+  const best = items.reduce((a, b) => (b.rank < a.rank ? b : a));
+  return `${abbr} has no big leak. ${best.label} are the strength: ${best.value.toFixed(1)} a game, ${ordinal(best.rank)} fewest in the league.`;
 }

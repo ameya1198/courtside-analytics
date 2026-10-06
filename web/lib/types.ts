@@ -53,6 +53,12 @@ export type PlayerData = {
   shots: { total: number; rimFga: number; rimFgm: number; bins: [number, number, number, number][] };
   value?: { age: number | null; salary: number | null; fantasy_ppg: number; per_pt: number | null } | null;
   clutch?: { games: number; pts: number; ts: number | null; plus_minus: number; pts_rank: number; minutes: number } | null;
+  /** On/off and defended shooting (mart_player_defense). Null when the player has no defense data. */
+  defense?: {
+    team: string; games: number; on_min: number; on_drtg: number | null; off_drtg: number | null; onoff_drtg: number | null;
+    dfga: number | null; dfg_diff: number | null; dfga_rim: number | null; dfg_diff_rim: number | null; dfg_diff_three: number | null;
+    qualified: boolean; onoff_pctile: number | null; dfg_pctile: number | null; contests_pctile: number | null; deflections_pctile: number | null;
+  } | null;
 };
 
 // [player_id, name, team, age, salary, fantasy_ppg, pts_per_36, ts_pct, dollars_per_fantasy_pt, games]
@@ -104,6 +110,23 @@ export type DefFactors = { opp_efg: number; forced_tov: number; dreb: number; op
 export type DefensePlayer = {
   player_id: number; name: string; gp: number; mpg: number;
   stl36: number; blk36: number; dreb36: number; pf36: number; pm: number;
+  // Phase 2 (mart_player_defense). Optional so older snapshots still type-check; null when not loaded.
+  on_min?: number | null; on_drtg?: number | null; off_drtg?: number | null;
+  /** Team defensive rating with him off minus with him on. Positive = the team defends better with him. */
+  onoff_drtg?: number | null;
+  /** Shots he defended, and opponent FG% on them minus what those shooters usually hit. Negative = good. */
+  dfga?: number | null; dfg_diff?: number | null; dfg_diff_rim?: number | null; dfg_diff_three?: number | null;
+  contests36?: number | null; deflections36?: number | null; salary?: number | null;
+  /** 500+ on-court minutes and 20+ games for this team. */
+  qualified?: boolean;
+  onoff_pctile?: number | null; dfg_pctile?: number | null; contests_pctile?: number | null; deflections_pctile?: number | null;
+};
+
+/** Points allowed per game four ways, with league ranks (1 = fewest) and league averages. */
+export type DefenseMisc = {
+  off_tov: number; off_tov_rank: number; second_chance: number; second_chance_rank: number;
+  fast_break: number; fast_break_rank: number; paint: number; paint_rank: number;
+  league: { off_tov: number; second_chance: number; fast_break: number; paint: number };
 };
 
 export type DefenseData = {
@@ -123,4 +146,5 @@ export type DefenseData = {
   compareZones: Zone[];
   bins: [number, number, number, number][];
   players: DefensePlayer[];
+  misc?: DefenseMisc | null;
 };

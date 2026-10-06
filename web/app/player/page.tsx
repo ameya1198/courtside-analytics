@@ -8,7 +8,7 @@ import { ParamSelect } from "@/components/param-select";
 import { RemoteImage } from "@/components/remote-image";
 import { pageData } from "@/lib/db";
 import { dec3, one, ordinal, parseSeason, seasonOptions, shortDate, signed } from "@/lib/format";
-import { formHeadline, money, percentileHeadline } from "@/lib/insights";
+import { dfgPoints, formHeadline, money, percentileHeadline } from "@/lib/insights";
 import { myTeam } from "@/lib/my-team";
 import { headshotUrl, teamTheme } from "@/lib/teams";
 import type { PlayerData, PoolRow } from "@/lib/types";
@@ -38,6 +38,7 @@ export default async function PlayerProfile({ searchParams }: { searchParams: Pr
   const last5 = d.lastGames.slice(-5);
   const recent5 = last5.length ? last5.reduce((a, g) => a + g.pts, 0) / last5.length : null;
   const pc = d.percentiles;
+  const def = d.defense ?? null;
   const rimShare = d.shots.total ? d.shots.rimFga / d.shots.total : 0;
   const rimFg = d.shots.rimFga ? d.shots.rimFgm / d.shots.rimFga : 0;
   const options = pool.some((r) => r[0] === p.player_id)
@@ -107,6 +108,39 @@ export default async function PlayerProfile({ searchParams }: { searchParams: Pr
             ) : (
               <Empty>{p.name} has not played enough games or minutes to be ranked yet.</Empty>
             )}
+            {def ? (
+              <ChartCard
+                title={!def.qualified
+                  ? `Defense: not enough minutes to rank yet (${Math.round(def.on_min)} of 500).`
+                  : def.onoff_drtg !== null && def.onoff_drtg > 0
+                    ? `${def.team} allows ${def.onoff_drtg.toFixed(1)} fewer points per 100 possessions with ${p.name.split(" ")[0]} on the court.`
+                    : `${def.team} allows ${Math.abs(def.onoff_drtg ?? 0).toFixed(1)} more points per 100 possessions with ${p.name.split(" ")[0]} on the court.`}
+                description="On/off: points allowed per 100 possessions with him off the court minus with him on. Defended FG%: how opponents shoot when he is the closest defender, against what those shooters usually hit."
+                note="On/off depends on who he plays with, so treat it as a signal. Percentiles are among players with 500+ minutes and 20+ games."
+              >
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="flex flex-col"><span className="label">On/off</span><span className="display text-[44px]">{def.onoff_drtg === null ? "-" : signed(def.onoff_drtg)}</span><span className="font-mono text-[12px] text-muted">per 100, {Math.round(def.on_min)} min</span></div>
+                  <div className="flex flex-col"><span className="label">Defended FG%</span><span className="display text-[44px]">{def.dfg_diff === null ? "-" : dfgPoints(def.dfg_diff)}</span><span className="font-mono text-[12px] text-muted">vs expected, {def.dfga ?? 0} shots</span></div>
+                  <div className="flex flex-col"><span className="label">At the rim</span><span className="display text-[44px]">{def.dfg_diff_rim === null ? "-" : dfgPoints(def.dfg_diff_rim)}</span><span className="font-mono text-[12px] text-muted">vs expected, {def.dfga_rim ?? 0} shots</span></div>
+                </div>
+                {def.qualified ? (
+                  <div className="mt-4">
+                    <HorizontalBarChart
+                      name="Percentile" icon="medal" domain={[0, 100]} refLine={50} categoryWidth={124}
+                      data={([
+                        ["On/off", def.onoff_pctile], ["Defended FG%", def.dfg_pctile],
+                        ["Contests", def.contests_pctile], ["Deflections", def.deflections_pctile],
+                      ] as const).filter(([, v]) => v !== null).map(([label, v]) => ({
+                        key: label, label, value: v!, valueText: String(v),
+                        fill: v! >= 90 ? "var(--accent)" : "var(--ink)",
+                      }))}
+                    />
+                  </div>
+                ) : (
+                  <p className="mt-4 text-[14px] text-muted">Not enough minutes to rank yet.</p>
+                )}
+              </ChartCard>
+            ) : null}
           </div>
           <div className="flex flex-col gap-5">
             <ChartCard

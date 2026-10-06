@@ -102,8 +102,8 @@ bins as (
   from shots_vs where loc_y <= 300 and loc_x between -250 and 249
   group by 1, 2
 ),
--- Box-score defense for the chosen team's rotation players. On/off and matchup data arrive in phase 2.
-roster as (
+-- Box-score defense for the chosen team's rotation players.
+roster_box as (
   select p.player_id, max(p.player_name) as name, count(*)::int as gp,
          round(avg(p.minutes_played), 1)::float as mpg,
          round(36 * sum(p.stl) / nullif(sum(p.minutes_played), 0), 2)::float as stl36,
@@ -115,6 +115,27 @@ roster as (
   where p.season = s.season and p.season_type = 'Regular Season' and p.team_abbreviation = pick.abbr and p.did_play
   group by p.player_id
   having count(*) >= 10 and avg(p.minutes_played) >= 12
+),
+-- Phase 2: on/off, defended shooting, hustle and salary from mart_player_defense, for the same players.
+roster as (
+  select b.*,
+         d.on_min::float as on_min, d.on_drtg::float as on_drtg, d.off_drtg::float as off_drtg,
+         d.onoff_drtg::float as onoff_drtg,
+         d.dfga_overall::float as dfga, d.dfg_diff_overall::float as dfg_diff,
+         d.dfg_diff_rim::float as dfg_diff_rim, d.dfg_diff_three::float as dfg_diff_three,
+         d.contests_per_36::float as contests36, d.deflections_per_36::float as deflections36,
+         d.salary, coalesce(d.is_qualified, false) as qualified,
+         d.onoff_pctile, d.dfg_pctile, d.contests_pctile, d.deflections_pctile
+  from roster_box b
+  cross join s
+  cross join me
+  left join marts.mart_player_defense d
+    on d.player_id = b.player_id and d.team_id = me.team_id and d.season = s.season
+),
+-- How opponents score against the chosen team, per game, with league ranks (1 = fewest allowed).
+misc_league as (
+  select m.* from marts.mart_team_defense_misc m, s
+  where m.season = s.season and m.season_type = 'Regular Season'
 )
 select json_build_object(
   'season', (select season from s),
@@ -134,5 +155,16 @@ select json_build_object(
   'zones', (select coalesce(json_agg(json_build_object('zone', zone, 'fga', fga, 'share', share, 'fg', fg) order by share desc), '[]'::json) from zones where side = 'vs'),
   'compareZones', (select coalesce(json_agg(json_build_object('zone', zone, 'fga', fga, 'share', share, 'fg', fg)), '[]'::json) from zones where side = 'cmp'),
   'bins', (select coalesce(json_agg(json_build_array(x, y, a, m)), '[]'::json) from bins),
-  'players', (select coalesce(json_agg(r order by r.mpg desc), '[]'::json) from roster r)
+  'players', (select coalesce(json_agg(r order by r.mpg desc), '[]'::json) from roster r),
+  'misc', (select json_build_object(
+             'off_tov', m.opp_pts_off_tov::float, 'off_tov_rank', m.opp_pts_off_tov_rank,
+             'second_chance', m.opp_pts_2nd_chance::float, 'second_chance_rank', m.opp_pts_2nd_chance_rank,
+             'fast_break', m.opp_pts_fb::float, 'fast_break_rank', m.opp_pts_fb_rank,
+             'paint', m.opp_pts_paint::float, 'paint_rank', m.opp_pts_paint_rank,
+             'league', (select json_build_object(
+                          'off_tov', round(avg(opp_pts_off_tov), 1)::float,
+                          'second_chance', round(avg(opp_pts_2nd_chance), 1)::float,
+                          'fast_break', round(avg(opp_pts_fb), 1)::float,
+                          'paint', round(avg(opp_pts_paint), 1)::float) from misc_league))
+           from misc_league m, me where m.team_id = me.team_id)
 ) as data
