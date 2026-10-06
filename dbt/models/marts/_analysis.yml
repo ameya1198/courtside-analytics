@@ -216,3 +216,43 @@ models:
         data_tests:
           - unique
           - not_null
+
+  - name: mart_player_defense
+    description: >
+      One row per player x team x regular season. On/off defensive rating (positive = team defends better
+      with him on), defended FG% against expected overall, at the rim and on threes (negative = good),
+      hustle per 36, salary, and league percentiles for qualified players (500+ on-court minutes, 20+ games).
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [player_id, team_id, season]
+    columns:
+      - name: player_id
+        data_tests:
+          - not_null
+      - name: team_id
+        data_tests:
+          - not_null
+      - name: is_qualified
+        data_tests:
+          - not_null
+      - name: onoff_pctile
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 100
+
+  - name: mart_team_defense_misc
+    description: Points each team allows per game off turnovers, second chances, fast breaks and in the paint, with league ranks (1 = fewest).
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [team_id, season, season_type]
+    columns:
+      - name: team_id
+        data_tests:
+          - not_null
+      - name: team_abbreviation
+        data_tests:
+          - not_null

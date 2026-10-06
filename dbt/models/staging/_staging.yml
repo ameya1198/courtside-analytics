@@ -146,3 +146,60 @@ models:
       - name: salary
         data_tests:
           - not_null
+
+  - name: stg_nba__player_on_off
+    description: One row per team x player x on/off court, per season and season type.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [team_id, player_id, court_status, season, season_type]
+    columns:
+      - name: team_id
+        data_tests:
+          - not_null
+      - name: player_id
+        data_tests:
+          - not_null
+      - name: court_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['on', 'off']
+
+  - name: stg_nba__player_defended_shots
+    description: One row per player x shot category, per season and season type.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [player_id, category, season, season_type]
+    columns:
+      - name: player_id
+        data_tests:
+          - not_null
+      - name: category
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Overall', '3 Pointers', 'Less Than 6Ft']
+
+  - name: stg_nba__player_hustle
+    description: One row per player per season and season type.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [player_id, season, season_type]
+    columns:
+      - name: player_id
+        data_tests:
+          - not_null
+
+  - name: stg_nba__team_defense_misc
+    description: One row per team per season and season type.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [team_id, season, season_type]
+    columns:
+      - name: team_id
+        data_tests:
+          - not_null

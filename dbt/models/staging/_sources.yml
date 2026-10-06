@@ -34,6 +34,14 @@ sources:
         description: Player totals in clutch time, per season type.
       - name: player_bio
         description: Player age, size and draft details per season.
+      - name: player_on_off
+        description: Team ratings with each player on and off the court (TeamPlayerOnOffSummary), 2024-25 onward.
+      - name: player_defended_shots
+        description: Opponent shooting when each player was the closest defender, by shot category (LeagueDashPtDefend).
+      - name: player_hustle
+        description: Player hustle totals per season (LeagueHustleStatsPlayer).
+      - name: team_defense_misc
+        description: Points each team allows per game off turnovers, second chances, fast breaks and in the paint.
       - name: schedule
         description: Every scheduled game of a season, including games not played yet.
         config:
