@@ -81,6 +81,9 @@ create index if not exists player_on_off_season_idx on raw.player_on_off (season
 create index if not exists player_defended_shots_season_idx on raw.player_defended_shots (season, season_type);
 create index if not exists player_hustle_season_idx on raw.player_hustle (season, season_type);
 create index if not exists team_defense_misc_season_idx on raw.team_defense_misc (season, season_type);
+-- The Defense page joins shots to one team's games by game_id. Without this it scans every shot,
+-- which pushed cold page loads past the 10 second query limit.
+create index if not exists shots_game_idx on raw.shots (game_id);
 
 alter table raw.player_on_off enable row level security;
 alter table raw.player_defended_shots enable row level security;

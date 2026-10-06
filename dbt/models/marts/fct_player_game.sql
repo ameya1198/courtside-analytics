@@ -4,7 +4,8 @@
 {{ config(
     materialized='incremental',
     unique_key=['game_id', 'player_id'],
-    incremental_strategy='delete+insert'
+    incremental_strategy='delete+insert',
+    post_hook="create index if not exists fct_player_game_season_team_idx on {{ this }} (season, season_type, team_abbreviation)"
 ) }}
 
 select
