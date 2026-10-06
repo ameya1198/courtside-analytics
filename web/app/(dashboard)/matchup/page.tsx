@@ -8,18 +8,16 @@ import { pageData } from "@/lib/db";
 import { dec3, one, ordinal, parseSeason, seasonOptions, shortDate, signed } from "@/lib/format";
 import { FACTOR_META, cap, zoneName } from "@/lib/insights";
 import { myTeam } from "@/lib/my-team";
-import { onColor, teamColor, teamTheme } from "@/lib/teams";
+import { colorDistance, onColor, opponentColor, teamColor, teamTheme } from "@/lib/teams";
 import type { MatchupData, TeamRow } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Matchup Scout" };
 export const revalidate = 3600;
 
-function Side({ t, dark, clutch }: { t: TeamRow; dark?: boolean; clutch?: { w: number; l: number; net: number | null; net_rank: number } }) {
-  const bg = teamColor(t.abbr);
-  const ink = onColor(bg);
+function Side({ t, bg, clutch }: { t: TeamRow; bg: string; clutch?: { w: number; l: number; net: number | null; net_rank: number } }) {
   return (
-    <div className="flex flex-col gap-3 px-4 pb-10 pt-8 md:px-12" style={{ background: dark ? "var(--ink)" : bg, color: dark ? "#fff" : ink }}>
-      <span className="display display-tight text-[clamp(96px,12vw,150px)]" style={dark ? { color: bg === "#000000" ? "#C4CED4" : bg } : undefined}>{t.abbr}</span>
+    <div className="flex flex-col gap-3 px-4 pb-10 pt-8 md:px-12" style={{ background: bg, color: onColor(bg) }}>
+      <span className="display display-tight text-[clamp(96px,12vw,150px)]">{t.abbr}</span>
       <span className="display text-[28px] font-extrabold tracking-[0.04em]">{t.name} · {t.w}-{t.l}</span>
       <div className="grid grid-cols-3 gap-3 border-t border-current pt-3">
         {[["Net", signed(t.net)], ["Offense", t.ortg.toFixed(1)], ["Defense", t.drtg.toFixed(1)]].map(([l, v]) => (
@@ -81,8 +79,13 @@ export default async function MatchupScout({ searchParams }: { searchParams: Pro
     .map((z) => ({ zone: z.zone, diff: zbMap.get(z.zone)!.share - z.share }))
     .sort((x, y) => y.diff - x.diff)[0];
 
+  // The opponent gets its own team colour, picked so it stays distinct from ours
+  const opp = opponentColor(a.abbr, b.abbr);
+  // Hero panels use each team's main colour, unless the two would look alike side by side
+  const bPanel = colorDistance(teamColor(a.abbr), teamColor(b.abbr)) > 110 ? teamColor(b.abbr) : opp;
+
   return (
-    <div style={teamTheme(a.abbr)}>
+    <div style={{ ...teamTheme(a.abbr), "--opp": opp } as React.CSSProperties}>
       <section>
         <div className="flex flex-wrap items-center justify-center gap-3 bg-ink px-4 py-3 text-white">
           <span className="label">Matchup Scout · {d.seasonLabel}</span>
@@ -91,8 +94,8 @@ export default async function MatchupScout({ searchParams }: { searchParams: Pro
           <ParamSelect name="season" label="Season" value={String(d.season)} options={seasonOptions(d.seasons)} />
         </div>
         <div className="grid md:grid-cols-2">
-          <Side t={a} clutch={d.clutch?.[a.abbr]} />
-          <Side t={b} dark clutch={d.clutch?.[b.abbr]} />
+          <Side t={a} bg={teamColor(a.abbr)} clutch={d.clutch?.[a.abbr]} />
+          <Side t={b} bg={bPanel} clutch={d.clutch?.[b.abbr]} />
         </div>
       </section>
 
@@ -102,7 +105,7 @@ export default async function MatchupScout({ searchParams }: { searchParams: Pro
             <ChartCard title={h2hTitle} description={`${a.abbr} margin in every ${d.seasonLabel} game against ${b.abbr}, regular season and playoffs`}
               legend={[
                 { label: `${a.abbr} won`, color: "var(--accent)" },
-                { label: `${b.abbr} won`, color: "var(--ink)" },
+                { label: `${b.abbr} won`, color: "var(--opp)" },
               ]}
               note={`Right of the line: ${a.abbr} won. Left: ${b.abbr} won. The number is the final score.`}>
               <HorizontalBarChart
@@ -112,7 +115,7 @@ export default async function MatchupScout({ searchParams }: { searchParams: Pro
                   const m = g.a_pts - g.b_pts;
                   return {
                     key: `${g.game_date}-${g.phase}`, label: shortDate(g.game_date), value: m, valueText: `${g.a_pts}-${g.b_pts}`,
-                    fill: m >= 0 ? "var(--accent)" : "var(--ink)",
+                    fill: m >= 0 ? "var(--accent)" : "var(--opp)",
                     tips: [
                       { label: "Game", value: g.phase === "Playoffs" ? "Playoffs" : "Regular season", icon: "calendar" as const },
                       { label: `${a.abbr} played`, value: g.a_home ? "Home" : "Away", icon: "house" as const },
@@ -131,7 +134,7 @@ export default async function MatchupScout({ searchParams }: { searchParams: Pro
           <div className="flex flex-col">
             {fa && fb ? (
               <ChartCard className="h-full" title={factorTitle} description="Offense, four factors, regular season"
-                legend={[{ label: a.abbr, color: "var(--accent)" }, { label: b.abbr, color: "var(--ink)" }]}
+                legend={[{ label: a.abbr, color: "var(--accent)" }, { label: b.abbr, color: "var(--opp)" }]}
                 note="Bars are scaled per factor. Lower is better for turnovers.">
                 <PairedHorizontalBarChart
                   a={a.abbr} b={b.abbr}

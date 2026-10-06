@@ -90,6 +90,25 @@ export function teamTheme(abbr?: string | null) {
   } as React.CSSProperties;
 }
 
+// Straight-line distance between two colours in RGB, 0 to about 441
+export function colorDistance(x: string, y: string) {
+  const [a, b] = [hexToRgb(x), hexToRgb(y)];
+  return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+}
+
+/**
+ * The opponent's colour on the Matchup page, chosen to sit next to our accent.
+ * Tries their primary, then secondary: it has to show up on white and look clearly different from ours.
+ * Falls back to ink when neither colour works.
+ */
+export function opponentColor(ours: string, theirs: string) {
+  const accent = teamTheme(ours)["--accent" as keyof React.CSSProperties] as string;
+  const c = TEAM_COLORS[theirs];
+  if (!c) return INK;
+  const usable = (hex: string) => luminance(hex) < 0.45 && colorDistance(hex, accent) > 110;
+  return [c.primary, c.secondary].find(usable) ?? INK;
+}
+
 export function teamColor(abbr: string) {
   return TEAM_COLORS[abbr]?.primary ?? BRAND;
 }

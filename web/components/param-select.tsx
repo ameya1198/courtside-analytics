@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
+import { startNav } from "@/lib/nav-progress";
 
 type Option = { value: string; label: string };
 
@@ -20,6 +21,7 @@ export function ParamSelect({ name, label, value, options }: { name: string; lab
         onChange={(e) => {
           const next = new URLSearchParams(params.toString());
           next.set(name, e.target.value);
+          startNav(path);
           start(() => router.push(`${path}?${next.toString()}`));
         }}
       >

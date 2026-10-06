@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Courtside · Concept A: Box Score</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="teams.js"></script>
+<style>
+  /* Concept A: brand-faithful. Ink and paper, 3px rules, sharp corners, one blue accent. */
+  :root {
+    --ink: #0b0d12; --paper: #ffffff; --soft: #eef0f3; --line: #d9dce1; --muted: #444b58;
+    --accent: #1f4fd1; --accent-ink: #ffffff;
+    --display: "Big Shoulders Display", "Arial Narrow", sans-serif;
+    --sans: "Geist", system-ui, sans-serif; --mono: "Geist Mono", ui-monospace, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink: #eef0f3; --paper: #0d0f14; --soft: #171a21; --line: #2a2e37; --muted: #a7aebb; --accent: #5b82ff; --accent-ink: #0d0f14; }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--paper); color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; }
+  a { color: inherit; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 0 24px; }
+  .display { font-family: var(--display); font-weight: 900; text-transform: uppercase; line-height: .92; letter-spacing: .01em; }
+  .label { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; font-weight: 500; }
+
+  /* Nav */
+  nav { border-bottom: 3px solid var(--ink); }
+  nav .wrap { display: flex; align-items: stretch; justify-content: space-between; height: 64px; padding-left: 0; }
+  .mark { background: var(--ink); color: var(--paper); display: flex; align-items: center; padding: 0 24px; font-size: 24px; letter-spacing: .04em; text-decoration: none; }
+  .navlinks { display: flex; align-items: center; gap: 28px; }
+  .navlinks a { text-decoration: none; font-family: var(--display); font-weight: 800; text-transform: uppercase; font-size: 18px; letter-spacing: .03em; }
+  .navlinks a:hover { color: var(--accent); }
+  .btn { display: inline-flex; align-items: center; gap: 10px; height: 48px; padding: 0 22px; border: 3px solid var(--ink); background: var(--ink); color: var(--paper); text-decoration: none;
+         font-family: var(--display); font-weight: 800; font-size: 20px; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; cursor: pointer; transition: transform .15s, background-color .2s, color .2s; }
+  .btn:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn:active { transform: translateY(1px); }
+  .btn.ghost { background: transparent; color: var(--ink); }
+  .btn.ghost:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .btn:focus-visible, a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+  /* Hero */
+  .hero { display: grid; grid-template-columns: 5fr 7fr; gap: 56px; align-items: center; padding-block: 72px 88px; }
+  .hero h1 { font-size: clamp(52px, 6.4vw, 92px); }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero p { margin-top: 24px; font-size: 19px; line-height: 1.55; color: var(--muted); max-width: 44ch; }
+  .hero .ctas { display: flex; gap: 12px; margin-top: 32px; flex-wrap: wrap; }
+  .shot { position: relative; }
+  .shot::before { content: ""; position: absolute; inset: 18px -18px -18px 18px; background: var(--accent); }
+  .shot img { position: relative; display: block; width: 100%; height: auto; border: 3px solid var(--ink); background: #fff; }
+
+  /* Numbers row */
+  .numbers { border-top: 3px solid var(--ink); border-bottom: 3px solid var(--ink); }
+  .numbers .wrap { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .num { padding: 28px 24px 28px 0; }
+  .num + .num { border-left: 1px solid var(--line); padding-left: 24px; }
+  .num b { display: block; font-family: var(--display); font-weight: 900; font-size: 64px; line-height: .9; }
+  .num span { display: block; margin-top: 8px; font-size: 15px; color: var(--muted); }
+
+  /* Takeaway marquee */
+  .takeaways { padding: 96px 0 0; }
+  .takeaways h2, .pages h2, .pipeline h2, .pick h2 { font-size: clamp(38px, 4.4vw, 60px); max-width: 18ch; }
+  .takeaways .sub { margin-top: 16px; font-size: 17px; color: var(--muted); max-width: 60ch; line-height: 1.55; }
+  .marquee { margin-top: 40px; overflow: hidden; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .track { display: flex; gap: 48px; width: max-content; padding: 22px 0; animation: slide 60s linear infinite; }
+  .marquee:hover .track { animation-play-state: paused; }
+  .track span { font-family: var(--display); font-weight: 900; font-size: 30px; text-transform: uppercase; white-space: nowrap; }
+  .track span::after { content: "/"; margin-left: 48px; color: var(--accent); }
+  @keyframes slide { to { transform: translateX(-50%); } }
+
+  /* Pages index with sticky preview */
+  .pages { padding-top: 112px; }
+  .pages-grid { display: grid; grid-template-columns: 5fr 7fr; gap: 56px; margin-top: 40px; align-items: start; }
+  .pagelist { list-style: none; padding: 0; border-top: 3px solid var(--ink); }
+  .pagelist button { width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--line); padding: 18px 0; color: inherit; cursor: pointer;
+                     display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; font: inherit; transition: padding-left .2s; }
+  .pagelist .t { font-family: var(--display); font-weight: 900; font-size: 30px; text-transform: uppercase; line-height: 1; }
+  .pagelist .q { grid-column: 1 / -1; font-size: 15px; color: var(--muted); }
+  .pagelist i { font-size: 22px; opacity: 0; transition: opacity .2s, transform .2s; transform: translateX(-6px); }
+  .pagelist button[aria-selected="true"] { padding-left: 14px; box-shadow: inset 6px 0 0 var(--accent); }
+  .pagelist button[aria-selected="true"] i, .pagelist button:hover i { opacity: 1; transform: none; color: var(--accent); }
+  .preview { position: sticky; top: 24px; border: 3px solid var(--ink); background: #fff; aspect-ratio: 16 / 10; overflow: hidden; }
+  .preview img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; transition: opacity .25s; }
+
+  /* Pipeline */
+  .pipeline { padding-top: 112px; }
+  .flow { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 40px; border: 3px solid var(--ink); }
+  .step { padding: 28px 24px 32px; position: relative; }
+  .step + .step { border-left: 3px solid var(--ink); }
+  .step:nth-child(3) { background: var(--ink); color: var(--paper); }
+  .step:nth-child(3) p { color: color-mix(in srgb, var(--paper) 72%, transparent); }
+  .step i { font-size: 30px; }
+  .step h3 { font-family: var(--display); font-weight: 900; font-size: 32px; text-transform: uppercase; margin-top: 24px; }
+  .step p { margin-top: 8px; font-size: 15px; line-height: 1.5; color: var(--muted); }
+  .step .tool { margin-top: 18px; }
+
+  /* Team picker */
+  .pick { padding-top: 112px; }
+  .conf { margin-top: 36px; }
+  .conf h3 { font-family: var(--display); font-weight: 900; font-size: 26px; text-transform: uppercase; margin-bottom: 14px; }
+  .teams { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+  .team { --c: #000; display: flex; align-items: center; gap: 12px; padding: 12px; border: 3px solid var(--ink); text-decoration: none; transition: background-color .2s, color .2s; cursor: pointer; }
+  .team img { width: 44px; height: 44px; background: #fff; padding: 4px; flex: none; }
+  .team b { font-family: var(--display); font-weight: 900; font-size: 22px; text-transform: uppercase; line-height: 1; display: block; }
+  .team small { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .team:hover, .team:focus-visible { background: var(--c); color: #fff; }
+  .team:hover small, .team:focus-visible small { color: rgba(255,255,255,.8); }
+
+  footer { margin-top: 112px; border-top: 3px solid var(--ink); }
+  footer .wrap { display: flex; justify-content: space-between; gap: 24px; padding-top: 28px; padding-bottom: 40px; font-size: 13px; color: var(--muted); }
+
+  .reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s cubic-bezier(.16,1,.3,1), transform .6s cubic-bezier(.16,1,.3,1); }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } .track { animation: none; } }
+
+  @media (max-width: 900px) {
+    .navlinks a:not(.btn) { display: none; }
+    .hero, .pages-grid { grid-template-columns: 1fr; gap: 40px; }
+    .hero { padding-block: 48px 64px; }
+    .shot::before { inset: 10px -10px -10px 10px; }
+    .numbers .wrap { grid-template-columns: 1fr 1fr; }
+    .num:nth-child(3) { border-left: 0; padding-left: 0; border-top: 1px solid var(--line); }
+    .num:nth-child(4) { border-top: 1px solid var(--line); }
+    .num b { font-size: 48px; }
+    .preview { position: relative; top: 0; order: -1; }
+    .flow { grid-template-columns: 1fr 1fr; }
+    .step:nth-child(3) { border-left: 0; }
+    .step:nth-child(n+3) { border-top: 3px solid var(--ink); }
+    .teams { grid-template-columns: repeat(2, 1fr); }
+    footer .wrap { flex-direction: column; }
+  }
+  @media (max-width: 520px) { .flow { grid-template-columns: 1fr; } .step + .step { border-left: 0; border-top: 3px solid var(--ink); } .wrap { padding: 0 16px; } nav .wrap { padding-left: 0; } }
+</style>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <a class="mark display" href="#">Courtside</a>
+    <div class="navlinks">
+      <a href="#pages">Pages</a>
+      <a href="#pipeline">How it works</a>
+      <a class="btn" href="#pick">Pick your team</a>
+    </div>
+  </div>
+</nav>
+
+<header class="wrap hero">
+  <div class="reveal">
+    <h1 class="display">Answers for the front office, <em>not more charts.</em></h1>
+    <p>Eight NBA analytics pages that open from your team's point of view. Every chart starts with what to do.</p>
+    <div class="ctas">
+      <a class="btn" href="#pick">Pick your team <i class="ph-bold ph-arrow-right"></i></a>
+      <a class="btn ghost" href="#pages">See the pages</a>
+    </div>
+  </div>
+  <div class="shot reveal"><img src="shots/team-den.jpg" alt="Team Report for the Denver Nuggets: 54-28 record, +4.7 net rating, 119.4 offense, 114.7 defense" width="2880" height="1800"></div>
+</header>
+
+<section class="numbers" aria-label="Coverage">
+  <div class="wrap">
+    <div class="num"><b>11</b><span>seasons, 2015-16 to 2025-26</span></div>
+    <div class="num"><b>30</b><span>teams, each with its own view</span></div>
+    <div class="num"><b>231</b><span>players priced against their wins</span></div>
+    <div class="num"><b>Nightly</b><span>refresh from nba_api</span></div>
+  </div>
+</section>
+
+<section class="takeaways">
+  <div class="wrap reveal">
+    <h2 class="display">Every chart opens with a headline.</h2>
+    <p class="sub">The title tells you the finding and the next move. These are live headlines from the 2025-26 season.</p>
+  </div>
+  <div class="marquee" aria-label="Example headlines">
+    <div class="track" id="track"></div>
+  </div>
+</section>
+
+<section class="pages wrap" id="pages">
+  <h2 class="display reveal">One question per page.</h2>
+  <div class="pages-grid">
+    <ul class="pagelist" id="pagelist" role="tablist" aria-label="Dashboard pages"></ul>
+    <div class="preview"><img id="previewImg" src="shots/league.jpg" alt=""></div>
+  </div>
+</section>
+
+<section class="pipeline wrap" id="pipeline">
+  <h2 class="display reveal">Built like a real data team would build it.</h2>
+  <div class="flow reveal">
+    <div class="step"><i class="ph-bold ph-download-simple"></i><h3>Ingest</h3><p>Python loaders pull games, players, shots and salaries.</p><div class="label tool">nba_api</div></div>
+    <div class="step"><i class="ph-bold ph-database"></i><h3>Store</h3><p>Raw, staging and marts schemas in one Postgres warehouse.</p><div class="label tool">Supabase Postgres</div></div>
+    <div class="step"><i class="ph-bold ph-check-square"></i><h3>Model</h3><p>dbt models with tests, so a broken load never reaches a chart.</p><div class="label tool">dbt Core</div></div>
+    <div class="step"><i class="ph-bold ph-chart-bar"></i><h3>Show</h3><p>One SQL query per page, cached and refreshed every night.</p><div class="label tool">Next.js on Vercel</div></div>
+  </div>
+</section>
+
+<section class="pick wrap" id="pick">
+  <h2 class="display reveal">Pick your team to start.</h2>
+  <div class="conf"><h3>Western Conference</h3><div class="teams" id="west"></div></div>
+  <div class="conf"><h3>Eastern Conference</h3><div class="teams" id="east"></div></div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>Data: NBA stats via nba_api, modelled in dbt on Supabase Postgres. Refreshed nightly.</span>
+    <span>Not affiliated with or endorsed by the NBA.</span>
+  </div>
+</footer>
+
+<script>
+  const HEADLINES = [
+    "Aaron Gordon cost $7.1M per Win Share. Revisit that contract.",
+    "Threes are 41.5% of all shots. Build rosters that can shoot them.",
+    "Charlotte gained the most: +12.6 on last season",
+    "Opponents make mid-range shots at 39.6%. Keep forcing those.",
+    "Win Shares per 48 peak at 30. Price long deals past 31 with care.",
+    "Nuggets win 69.7% on the second night of a back-to-back",
+  ];
+  const track = document.getElementById("track");
+  track.innerHTML = [...HEADLINES, ...HEADLINES].map((h) => `<span>${h}</span>`).join("");
+
+  const PAGES = [
+    ["League Pulse", "Who is the team to beat, and who is moving?", "league"],
+    ["Team Report", "Where are we winning and losing games?", "team-den"],
+    ["Defense", "Where does our defense give up points?", "defense-den"],
+    ["Player Profile", "What is this player great at, and where is he slipping?", "player-jokic"],
+    ["Player Value", "Who wins more than they cost?", "value-scatter"],
+    ["Rest and Schedule", "Do back-to-backs cost us games?", "rest"],
+    ["Matchup Scout", "How do we line up against the next opponent?", "matchup"],
+  ];
+  const list = document.getElementById("pagelist");
+  const img = document.getElementById("previewImg");
+  list.innerHTML = PAGES.map(([t, q, s], i) =>
+    `<li><button role="tab" aria-selected="${i === 0}" data-shot="${s}"><span class="t">${t}</span><i class="ph-bold ph-arrow-right"></i><span class="q">${q}</span></button></li>`).join("");
+  const select = (b) => {
+    list.querySelectorAll("button").forEach((x) => x.setAttribute("aria-selected", x === b));
+    img.style.opacity = 0;
+    setTimeout(() => { img.src = `shots/${b.dataset.shot}.jpg`; img.alt = b.querySelector(".t").textContent + " page"; img.style.opacity = 1; }, 120);
+  };
+  list.querySelectorAll("button").forEach((b) => { b.addEventListener("mouseenter", () => select(b)); b.addEventListener("click", () => select(b)); b.addEventListener("focus", () => select(b)); });
+
+  const city = (n) => n.split(" ").slice(0, -1).join(" ");
+  const nick = (n) => n.split(" ").slice(-1)[0];
+  for (const [conf, el] of [["West", "west"], ["East", "east"]]) {
+    document.getElementById(el).innerHTML = TEAMS.filter((t) => t.c === conf).sort((a, b) => a.n.localeCompare(b.n)).map((t) =>
+      `<a class="team" href="/" style="--c:${COLORS[t.a][0] === "#000000" ? "#1b1d22" : COLORS[t.a][0]}" aria-label="Choose ${t.n}">
+        <img src="https://cdn.nba.com/logos/nba/${t.id}/primary/L/logo.svg" alt="" loading="lazy">
+        <span><small>${t.w}-${t.l}</small><b>${nick(t.n)}</b></span></a>`).join("");
+  }
+
+  const io = new IntersectionObserver((es) => es.forEach((e) => (e.isIntersecting || e.boundingClientRect.top < 0) && (e.target.classList.add("in"), io.unobserve(e.target))), { threshold: 0, rootMargin: "0px 0px -8% 0px" });
+  document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+</script>
+</body>
+</html>

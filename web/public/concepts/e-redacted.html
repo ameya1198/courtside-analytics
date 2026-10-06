@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Courtside · Concept E: Redacted</title>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@900&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="min.css">
+<style>
+  /* Three findings with the names blacked out. Hover, focus or tap a bar to read it. */
+  .memo { max-width: 980px; }
+  .memo p { font-family: var(--display); font-weight: 900; text-transform: uppercase; font-size: clamp(34px, 5.2vw, 72px); line-height: 1.02; }
+  .memo p + p { margin-top: 28px; }
+  .memo p.dim { color: var(--faint); transition: color .4s; }
+  .memo:hover p.dim, .memo:focus-within p.dim { color: var(--ink); }
+  .r { position: relative; display: inline-block; cursor: pointer; border: 0; padding: 0; background: none; font: inherit; color: inherit; text-transform: inherit; line-height: inherit; }
+  .r::after { content: ""; position: absolute; inset: 6% -4px 2% -4px; background: var(--ink); transform-origin: right; transition: transform .45s cubic-bezier(.7,0,.2,1); }
+  .r:hover::after, .r:focus-visible::after, .r.open::after { transform: scaleX(0); }
+  .r:focus-visible { outline: none; }
+  .r:focus-visible { box-shadow: 0 4px 0 var(--accent); }
+  .below { margin-top: 56px; display: flex; flex-wrap: wrap; align-items: center; gap: 28px; }
+  .below span { font-size: 16px; color: var(--muted); max-width: 38ch; line-height: 1.5; }
+  .hint { font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: .08em; margin-bottom: 36px; }
+</style>
+</head>
+<body>
+<header class="top"><a class="mark display" href="#">Courtside</a><a class="go" href="/">Pick your team</a></header>
+<main>
+  <p class="hint">Hover or tap the black bars.</p>
+  <div class="memo">
+    <p><button class="r" type="button" aria-label="Reveal player">Aaron Gordon</button> cost $7.1M for every win he added.</p>
+    <p class="dim">A $2.3M signing, <button class="r" type="button" aria-label="Reveal player">Tim Hardaway Jr.</button>, cost $522K a win.</p>
+    <p class="dim">Both play for <button class="r" type="button" aria-label="Reveal team">Denver</button>.</p>
+  </div>
+  <div class="below">
+    <a class="cta" href="/">Pick your team</a>
+    <span>Courtside surfaces calls like this for all 30 teams, refreshed every night.</span>
+  </div>
+</main>
+<footer class="foot"><span>2025-26 regular season. Wins are Win Shares. Salaries and Win Shares from Basketball-Reference.</span><span>Not affiliated with the NBA.</span></footer>
+<script>
+  document.querySelectorAll(".r").forEach((b) => b.addEventListener("click", () => b.classList.toggle("open")));
+</script>
+</body>
+</html>

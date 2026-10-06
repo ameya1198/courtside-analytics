@@ -365,7 +365,8 @@ export function PairedHorizontalBarChart({
 }) {
   const config = {
     aN: { label: a, color: "var(--accent)", icon: Flame },
-    bN: { label: b, color: "var(--ink)", icon: Swords },
+    // --opp is the opponent colour on the Matchup page; other pages keep ink
+    bN: { label: b, color: "var(--opp, var(--ink))", icon: Swords },
   } satisfies ChartConfig;
   const rows = data.map((d) => ({ ...d, aN: d.a / d.scale, bN: d.b / d.scale }));
   return (

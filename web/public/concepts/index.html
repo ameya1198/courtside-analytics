@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Courtside Landing Concepts</title>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@900&family=Geist:wght@400;600&family=Geist+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #0b0d12; --paper: #f4f5f7; --card: #fff; --muted: #535b69; --line: #dde0e6; }
+  @media (prefers-color-scheme: dark) { :root { --ink: #eef0f3; --paper: #0e1015; --card: #161920; --muted: #a2a9b6; --line: #2a2e38; } }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--paper); color: var(--ink); font-family: "Geist", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 48px 28px 80px; }
+  h1 { font-family: "Big Shoulders Display", sans-serif; font-weight: 900; text-transform: uppercase; font-size: clamp(40px, 5vw, 64px); line-height: .95; }
+  .intro { margin-top: 12px; color: var(--muted); font-size: 17px; max-width: 70ch; line-height: 1.55; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 40px; }
+  .c { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
+  .frame { position: relative; aspect-ratio: 16 / 10; overflow: hidden; border-bottom: 1px solid var(--line); background: #fff; }
+  .frame iframe { position: absolute; top: 0; left: 0; width: 1440px; height: 900px; border: 0; transform-origin: 0 0; pointer-events: none; }
+  .body { padding: 22px 24px 24px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+  .body h2 { font-family: "Big Shoulders Display", sans-serif; font-weight: 900; text-transform: uppercase; font-size: 32px; line-height: 1; }
+  .body p { color: var(--muted); font-size: 15px; line-height: 1.55; }
+  .meta { font-family: "Geist Mono", monospace; font-size: 12px; color: var(--muted); }
+  .body a { margin-top: auto; align-self: flex-start; display: inline-flex; height: 42px; align-items: center; padding: 0 18px; border-radius: 8px; background: var(--ink); color: var(--paper); text-decoration: none; font-weight: 600; font-size: 14px; }
+  .body a:hover { opacity: .88; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } .wrap { padding: 32px 16px 64px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Courtside landing page, minimal directions</h1>
+  <p class="intro">Each page holds back one real finding from the 2025-26 data and asks the visitor to do something to see it. Every page has the same button: Pick your team. Open one and play with it.</p>
+  <div class="grid">
+    <article class="c">
+      <div class="frame"><iframe src="e-redacted.html" title="E · Redacted preview" loading="lazy" tabindex="-1"></iframe></div>
+      <div class="body">
+        <h2>E · Redacted</h2>
+        <p>The names are blacked out. Hover a bar to find out who cost $7.1M per win, and who cost $522K.</p>
+        <a href="e-redacted.html">Open E</a>
+      </div>
+    </article>
+    <article class="c">
+      <div class="frame"><iframe src="f-one-number.html" title="F · One Number preview" loading="lazy" tabindex="-1"></iframe></div>
+      <div class="body">
+        <h2>F · One Number</h2>
+        <p>One huge number and one sentence. Click Next to see another, six in all.</p>
+        <a href="f-one-number.html">Open F</a>
+      </div>
+    </article>
+    <article class="c">
+      <div class="frame"><iframe src="g-one-of-30.html" title="G · One of 30 preview" loading="lazy" tabindex="-1"></iframe></div>
+      <div class="body">
+        <h2>G · One of 30</h2>
+        <p>Thirty unlabeled dots, one per team. Find yours and get its rank and its weak spot.</p>
+        <a href="g-one-of-30.html">Open G</a>
+      </div>
+    </article>
+    <article class="c">
+      <div class="frame"><iframe src="h-guess.html" title="H · Your Call preview" loading="lazy" tabindex="-1"></iframe></div>
+      <div class="body">
+        <h2>H · Your Call</h2>
+        <p>Two anonymous contracts. Pick the better deal, then see the names.</p>
+        <a href="h-guess.html">Open H</a>
+      </div>
+    </article>
+  </div>
+  <p class="intro" style="margin-top:40px">Earlier screenshot-based concepts: <a href="a-box-score.html" style="color:inherit">A</a>, <a href="b-night-game.html" style="color:inherit">B</a>, <a href="c-front-office-memo.html" style="color:inherit">C</a>, <a href="d-your-team.html" style="color:inherit">D</a>.</p>
+</div>
+<script>
+  const fit = () => document.querySelectorAll(".frame").forEach((f) => { f.querySelector("iframe").style.transform = `scale(${f.clientWidth / 1440})`; });
+  addEventListener("resize", fit); fit();
+</script>
+</body>
+</html>

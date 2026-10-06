@@ -95,7 +95,7 @@ export function ZoneRows({ zones, compare, abbr, compareLabel }: { zones: Zone[]
     <div className="flex flex-col">
       <Legend style={{ marginBottom: 22 }} items={[
         { label: `${abbr} share of shots`, color: "var(--accent)" },
-        { label: `${compareLabel} share of shots`, color: "var(--ink)" },
+        { label: `${compareLabel} share of shots`, color: "var(--opp, var(--ink))" },
       ]} />
       <div className="label grid gap-3 border-b-[3px] border-ink pb-2 text-muted" style={ZONE_COLS}>
         <span>Zone</span><span>Share of shots</span><span className="text-right">{abbr} FG%</span><span className="text-right">{compareLabel}</span>
@@ -110,7 +110,7 @@ export function ZoneRows({ zones, compare, abbr, compareLabel }: { zones: Zone[]
             </div>
             <div className="flex flex-col gap-1">
               <div className="relative h-3 bg-soft"><div className="absolute inset-y-0 left-0 bg-accent" style={{ width: `${(z.share / max) * 100}%` }} /></div>
-              {c ? <div className="relative h-1.5"><div className="absolute inset-y-0 left-0 bg-ink" style={{ width: `${(c.share / max) * 100}%` }} /></div> : null}
+              {c ? <div className="relative h-1.5"><div className="absolute inset-y-0 left-0" style={{ width: `${(c.share / max) * 100}%`, background: "var(--opp, var(--ink))" }} /></div> : null}
               <span className="font-mono text-[11px] text-muted">{abbr} {pct(z.share)}{c ? ` · ${compareLabel.toLowerCase()} ${pct(c.share)}` : ""}</span>
             </div>
             <span className="display text-right text-[28px]">{pct(z.fg)}</span>

@@ -16,7 +16,7 @@ export async function SiteHeader() {
         </Link>
         <div className="label flex items-center gap-3 px-5 py-3 text-[#A7AEBB] md:px-7">
           {mine ? (
-            <Link href="/" className="flex items-center gap-2 text-white hover:underline" title="Change team">
+            <Link href="/pick" className="flex items-center gap-2 text-white hover:underline" title="Change team">
               <RemoteImage src={logoUrl(mine.id)} alt="" className="h-6 w-6" />
               <span>{mine.abbr}</span>
               <span className="text-[#A7AEBB]">· Change team</span>

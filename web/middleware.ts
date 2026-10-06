@@ -1,8 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-// Until a team is picked, every page sends the visitor to the landing page ("/").
+// Pages that work before a team is picked: the landing page and the team picker.
+const OPEN = new Set(["/", "/pick"]);
+
+// Until a team is picked, every other page sends the visitor to the landing page.
 export function middleware(req: NextRequest) {
-  if (req.nextUrl.pathname !== "/" && !req.cookies.get("courtside_team")) {
+  if (!OPEN.has(req.nextUrl.pathname) && !req.cookies.get("courtside_team")) {
     return NextResponse.redirect(new URL("/", req.url));
   }
 }

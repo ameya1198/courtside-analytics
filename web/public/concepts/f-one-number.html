@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Courtside · Concept F: One Number</title>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@900&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="min.css">
+<style>
+  /* One huge number, the context in small type. "Next" deals another real number. */
+  .num { font-family: var(--display); font-weight: 900; font-size: clamp(140px, 30vw, 420px); line-height: .82; letter-spacing: -.015em; color: var(--ink); }
+  .num .unit { color: var(--accent); }
+  .ctx { margin-top: 28px; display: grid; grid-template-columns: minmax(0, 46ch) auto; gap: 40px; align-items: end; justify-content: space-between; }
+  .ctx p { font-size: clamp(18px, 1.6vw, 22px); line-height: 1.45; }
+  .ctx p small { display: block; margin-top: 10px; font-size: 15px; color: var(--muted); }
+  .ctx .acts { display: flex; gap: 12px; flex-wrap: wrap; }
+  .next { height: 52px; padding: 0 22px; background: transparent; border: 1px solid var(--faint); color: var(--ink); font: 500 16px var(--sans); cursor: pointer; display: inline-flex; align-items: center; gap: 10px; transition: border-color .2s; }
+  .next:hover { border-color: var(--ink); }
+  .next kbd { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .swap { transition: opacity .25s, transform .35s cubic-bezier(.16,1,.3,1); }
+  .swap.out { opacity: 0; transform: translateY(14px); }
+  .count { font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: .08em; margin-bottom: 18px; }
+  @media (max-width: 760px) { .ctx { grid-template-columns: 1fr; gap: 28px; } }
+</style>
+</head>
+<body>
+<header class="top"><a class="mark display" href="#">Courtside</a><a class="go" href="/">Pick your team</a></header>
+<main>
+  <p class="count" id="count">1 / 6</p>
+  <div class="num swap" id="num" aria-live="polite"></div>
+  <div class="ctx">
+    <p class="swap" id="txt"></p>
+    <div class="acts">
+      <button class="next" id="next" type="button">Next number <kbd>→</kbd></button>
+      <a class="cta" href="/">Pick your team</a>
+    </div>
+  </div>
+</main>
+<footer class="foot"><span>Numbers are from 2025-26 unless noted. Courtside has a set like this for every team.</span><span>Not affiliated with the NBA.</span></footer>
+<script>
+  // [value, unit, sentence, smaller note]
+  const N = [
+    ["69.7", "%", "Denver's win rate on the second night of a back-to-back.", "The league wins 43.8% in the same spot."],
+    ["41.5", "%", "Share of all shots that were threes this season.", "It was 28.5% in 2015-16."],
+    ["30", "th", "Where Denver rank at forcing turnovers. Out of 30.", "They still won 54 games."],
+    ["+12.6", "", "Charlotte's gain in net rating on last season, the biggest in the league.", "From -9.8 to +2.8."],
+    ["$522", "K", "What Tim Hardaway Jr. cost Denver for each win he added.", "Aaron Gordon cost $7.1M."],
+    ["30", "", "The age when Win Shares per 48 minutes peak, across 11 seasons.", "By 32 they are down 15%."],
+  ];
+  let i = 0;
+  const num = document.getElementById("num"), txt = document.getElementById("txt"), count = document.getElementById("count");
+  const render = () => {
+    const [v, u, s, n] = N[i];
+    num.innerHTML = `${v}<span class="unit">${u}</span>`;
+    txt.innerHTML = `${s}<small>${n}</small>`;
+    count.textContent = `${i + 1} / ${N.length}`;
+  };
+  const step = () => {
+    num.classList.add("out"); txt.classList.add("out");
+    setTimeout(() => { i = (i + 1) % N.length; render(); num.classList.remove("out"); txt.classList.remove("out"); }, 220);
+  };
+  document.getElementById("next").addEventListener("click", step);
+  addEventListener("keydown", (e) => { if (e.key === "ArrowRight") step(); });
+  render();
+</script>
+</body>
+</html>

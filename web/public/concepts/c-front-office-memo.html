@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Courtside · Concept C: Front Office Memo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@900&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<script src="teams.js"></script>
+<style>
+  /* Concept C: calm editorial. Cool grey paper, cobalt accent, mixed-case Geist headlines, condensed type only for numbers. 8px radius. */
+  :root {
+    --bg: #f5f6f8; --card: #ffffff; --ink: #0f1218; --muted: #535b69; --line: #dde0e6; --soft: #eceef2;
+    --accent: #1f4fd1; --accent-soft: #e5ecfc; --strike: #9aa1ad;
+    --display: "Big Shoulders Display", "Arial Narrow", sans-serif;
+    --sans: "Geist", system-ui, sans-serif; --mono: "Geist Mono", ui-monospace, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0e1015; --card: #161920; --ink: #eef0f3; --muted: #a2a9b6; --line: #2a2e38; --soft: #1c2029; --accent: #6b8fff; --accent-soft: #1a2445; --strike: #5d6472; }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; }
+  a { color: inherit; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 28px; }
+  .num { font-family: var(--display); font-weight: 900; line-height: .88; }
+
+  nav .wrap { height: 68px; display: flex; align-items: center; justify-content: space-between; }
+  .mark { font-weight: 700; font-size: 18px; letter-spacing: -.01em; text-decoration: none; display: flex; gap: 8px; align-items: center; }
+  .mark i { font-size: 22px; color: var(--accent); }
+  .navlinks { display: flex; align-items: center; gap: 28px; font-size: 15px; color: var(--muted); }
+  .navlinks a { text-decoration: none; }
+  .navlinks a:hover { color: var(--ink); }
+  .btn { display: inline-flex; align-items: center; gap: 8px; height: 46px; padding: 0 20px; border-radius: 8px; background: var(--accent); color: #fff; font-weight: 600; font-size: 15px;
+         text-decoration: none; white-space: nowrap; cursor: pointer; border: 0; transition: background-color .2s, transform .15s; }
+  .btn:hover { background: color-mix(in srgb, var(--accent) 86%, #000); }
+  .btn:active { transform: translateY(1px); }
+  .btn.small { height: 38px; padding: 0 14px; font-size: 14px; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  /* Manifesto hero */
+  .hero { text-align: center; padding-block: 72px 0; }
+  .hero h1 { font-size: clamp(44px, 6vw, 84px); font-weight: 700; letter-spacing: -.035em; line-height: 1; max-width: 15ch; margin: 0 auto; }
+  .hero p { margin: 22px auto 0; font-size: 19px; line-height: 1.55; color: var(--muted); max-width: 46ch; }
+  .hero .btn { margin-top: 30px; }
+
+  .rewrite { margin: 64px auto 0; max-width: 980px; background: var(--card); border: 1px solid var(--line); border-radius: 8px 8px 0 0; border-bottom: 0; text-align: left; padding: 30px 36px 0; }
+  .rewrite .before { font-size: 17px; color: var(--strike); text-decoration: line-through; text-decoration-thickness: 2px; display: flex; gap: 10px; align-items: center; }
+  .rewrite .after { margin-top: 10px; font-family: var(--display); font-weight: 900; text-transform: uppercase; font-size: clamp(26px, 3.2vw, 40px); line-height: .95; display: flex; gap: 14px; align-items: flex-start; }
+  .rewrite .after i { color: var(--accent); font-size: 26px; flex: none; margin-top: 2px; }
+  .rewrite .before i { font-size: 18px; }
+  .rewrite img { display: block; width: 100%; height: auto; margin-top: 26px; border-radius: 6px 6px 0 0; border: 1px solid var(--line); border-bottom: 0; }
+
+  /* Sticky story */
+  .story { background: var(--card); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .story .wrap { display: grid; grid-template-columns: 5fr 7fr; gap: 64px; }
+  .story-text { position: sticky; top: 0; height: 100dvh; display: flex; flex-direction: column; justify-content: center; }
+  .story-text h2 { font-size: clamp(34px, 3.6vw, 52px); font-weight: 700; letter-spacing: -.03em; line-height: 1.04; }
+  .steps { list-style: none; padding: 0; margin-top: 36px; display: grid; gap: 4px; }
+  .steps li { padding: 16px 18px; border-radius: 8px; transition: background-color .3s, color .3s; color: var(--muted); }
+  .steps li b { display: block; color: var(--ink); font-size: 17px; font-weight: 600; }
+  .steps li span { display: block; margin-top: 4px; font-size: 15px; line-height: 1.5; max-height: 0; overflow: hidden; opacity: 0; transition: max-height .4s, opacity .3s; }
+  .steps li.on { background: var(--accent-soft); }
+  .steps li.on b { color: var(--accent); }
+  .steps li.on span { max-height: 90px; opacity: 1; }
+  .frames { padding-block: 18vh; display: grid; gap: 22vh; }
+  .frame img { width: 100%; height: auto; display: block; border-radius: 8px; border: 1px solid var(--line); box-shadow: 0 24px 60px -24px rgba(16, 24, 48, .25); }
+  .frame figcaption { margin-top: 12px; font-size: 14px; color: var(--muted); }
+
+  /* Principles: 2x2 with one wide cell */
+  .rules { padding-top: 120px; }
+  .rules h2, .built h2, .pick h2 { font-size: clamp(34px, 3.6vw, 52px); font-weight: 700; letter-spacing: -.03em; line-height: 1.04; max-width: 20ch; }
+  .rules-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; margin-top: 44px; }
+  .rule { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 28px; }
+  .rule i { font-size: 28px; color: var(--accent); }
+  .rule h3 { font-size: 20px; font-weight: 600; margin-top: 18px; letter-spacing: -.01em; }
+  .rule p { margin-top: 8px; color: var(--muted); font-size: 15px; line-height: 1.55; max-width: 48ch; }
+  .rule.feature { grid-row: span 2; display: flex; flex-direction: column; background: var(--accent); color: #fff; border-color: transparent; }
+  .rule.feature i, .rule.feature p { color: rgba(255,255,255,.85); }
+  .rule.feature .num { font-size: clamp(80px, 9vw, 140px); margin-top: auto; padding-top: 28px; }
+  .rule.feature small { font-size: 14px; color: rgba(255,255,255,.8); }
+
+  /* Pipeline line */
+  .built { padding-top: 120px; }
+  .line { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 48px; position: relative; }
+  .line::before { content: ""; position: absolute; left: 0; right: 0; top: 21px; height: 2px; background: var(--line); }
+  .node { position: relative; padding-right: 24px; }
+  .node .dot { width: 44px; height: 44px; border-radius: 8px; background: var(--card); border: 1px solid var(--line); display: grid; place-items: center; font-size: 20px; color: var(--accent); }
+  .node h3 { margin-top: 20px; font-size: 18px; font-weight: 600; }
+  .node p { margin-top: 6px; font-size: 15px; color: var(--muted); line-height: 1.5; }
+  .node code { font-family: var(--mono); font-size: 13px; color: var(--ink); background: var(--soft); padding: 2px 6px; border-radius: 4px; }
+
+  /* Picker as two compact columns */
+  .pick { padding-top: 120px; }
+  .confs { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; margin-top: 40px; }
+  .confs h3 { font-size: 15px; font-weight: 600; color: var(--muted); padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+  .tlist { list-style: none; padding: 0; columns: 1; column-gap: 24px; margin-top: 8px; }
+  .tlist a { display: flex; align-items: center; gap: 10px; padding: 9px 8px; border-radius: 6px; text-decoration: none; font-size: 15px; break-inside: avoid; transition: background-color .15s; }
+  .tlist a:hover { background: var(--card); }
+  .tlist img { width: 26px; height: 26px; }
+  .tlist small { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+  @media (min-width: 1100px) { .tlist { columns: 2; } }
+  .tlist small { white-space: nowrap; }
+  footer { margin-top: 120px; border-top: 1px solid var(--line); }
+  footer .wrap { display: flex; justify-content: space-between; gap: 20px; padding-block: 28px 44px; font-size: 13px; color: var(--muted); }
+
+  .reveal { opacity: 0; transform: translateY(16px); transition: opacity .6s cubic-bezier(.16,1,.3,1), transform .6s cubic-bezier(.16,1,.3,1); }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } .steps li span { transition: none; } }
+
+  @media (max-width: 900px) {
+    .navlinks a:not(.btn) { display: none; }
+    .rewrite { padding: 22px 18px 0; }
+    .story .wrap { grid-template-columns: 1fr; gap: 0; }
+    .story-text { position: relative; height: auto; padding-block: 64px 24px; }
+    .steps li span { max-height: none; opacity: 1; }
+    .frames { padding-block: 0 64px; gap: 40px; }
+    .rules-grid { grid-template-columns: 1fr; }
+    .rule.feature { grid-row: auto; }
+    .line { grid-template-columns: 1fr 1fr; row-gap: 36px; }
+    .line::before { display: none; }
+    .confs { grid-template-columns: 1fr; }
+    footer .wrap { flex-direction: column; }
+  }
+  @media (max-width: 520px) { .wrap { padding: 0 16px; } .line { grid-template-columns: 1fr; } .tlist { columns: 1; } }
+</style>
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <a class="mark" href="#"><i class="ph ph-basketball"></i>Courtside Analytics</a>
+    <div class="navlinks">
+      <a href="#story">Tour</a>
+      <a href="#built">How it's built</a>
+      <a class="btn small" href="#pick">Pick your team</a>
+    </div>
+  </div>
+</nav>
+
+<header class="wrap hero">
+  <h1 class="reveal">A chart should end in a decision.</h1>
+  <p class="reveal">Courtside turns NBA data into front-office calls, from league standings down to one player's contract.</p>
+  <a class="btn reveal" href="#pick">Pick your team <i class="ph ph-arrow-right"></i></a>
+
+  <div class="rewrite reveal" aria-label="How a chart title is written">
+    <div class="before"><i class="ph ph-x"></i>Defensive rating, last 10 games</div>
+    <div class="after"><i class="ph ph-check-circle"></i>Denver allow 116.9 per 100 over the last 10, 4.2 worse than the league. Tighten up before it costs games.</div>
+    <img src="shots/defense-den.jpg" alt="Defense page for the Denver Nuggets with an opponent shot chart" width="2880" height="1800">
+  </div>
+</header>
+
+<section class="story" id="story">
+  <div class="wrap">
+    <div class="story-text">
+      <h2>From the whole league to one contract.</h2>
+      <ol class="steps" id="steps">
+        <li class="on"><b>League Pulse</b><span>Oklahoma City lead at +11.5, 3.4 clear of San Antonio. Charlotte gained the most on last season.</span></li>
+        <li><b>Team Report</b><span>Denver are 54-28 with the league's best offense, 119.4, and the 21st-ranked defense.</span></li>
+        <li><b>Player Profile</b><span>Nikola Jokić: 27.7 points, 12.9 rebounds and 10.7 assists on .670 true shooting.</span></li>
+        <li><b>Player Value</b><span>Tim Hardaway Jr. returned 4.4 Win Shares for $2.3M. Aaron Gordon cost $7.1M per Win Share.</span></li>
+      </ol>
+    </div>
+    <div class="frames">
+      <figure class="frame" data-step="0"><img src="shots/league.jpg" alt="League Pulse page" loading="lazy" width="2880" height="1800"><figcaption>League Pulse, 2025-26</figcaption></figure>
+      <figure class="frame" data-step="1"><img src="shots/team-den.jpg" alt="Team Report for Denver" loading="lazy" width="2880" height="1800"><figcaption>Team Report, Denver Nuggets</figcaption></figure>
+      <figure class="frame" data-step="2"><img src="shots/player-jokic.jpg" alt="Player Profile for Nikola Jokić" loading="lazy" width="2880" height="1800"><figcaption>Player Profile, Nikola Jokić</figcaption></figure>
+      <figure class="frame" data-step="3"><img src="shots/value-scatter.jpg" alt="Player Value scatter of salary against Win Shares" loading="lazy" width="2880" height="1800"><figcaption>Player Value, salary against Win Shares</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section class="rules wrap">
+  <h2 class="reveal">Written for people who have to make the call.</h2>
+  <div class="rules-grid">
+    <div class="rule feature reveal">
+      <i class="ph ph-users-three"></i>
+      <h3>Your team, on every page</h3>
+      <p>Pick a team once. Every page then opens with your roster, your schedule and your opponents, in your team's colour.</p>
+      <div class="num">30</div><small>team views, one per franchise</small>
+    </div>
+    <div class="rule reveal"><i class="ph ph-text-aa"></i><h3>Takeaway titles</h3><p>Each chart title states the finding and what to do about it.</p></div>
+    <div class="rule reveal"><i class="ph ph-highlighter"></i><h3>One highlight colour</h3><p>Your team stands out. Everyone else stays grey. No pie charts, no gauges.</p></div>
+  </div>
+</section>
+
+<section class="built wrap" id="built">
+  <h2 class="reveal">Built on a tested data warehouse.</h2>
+  <div class="line reveal">
+    <div class="node"><div class="dot"><i class="ph ph-download-simple"></i></div><h3>Ingest</h3><p>Games, shots and salaries via <code>nba_api</code>, 11 seasons back.</p></div>
+    <div class="node"><div class="dot"><i class="ph ph-database"></i></div><h3>Store</h3><p>Raw, staging and marts in Supabase Postgres.</p></div>
+    <div class="node"><div class="dot"><i class="ph ph-check-square"></i></div><h3>Model</h3><p>dbt models with tests on every key table.</p></div>
+    <div class="node"><div class="dot"><i class="ph ph-clock-clockwise"></i></div><h3>Refresh</h3><p>GitHub Actions reload the data every night.</p></div>
+  </div>
+</section>
+
+<section class="pick wrap" id="pick">
+  <h2 class="reveal">Pick your team to open its report.</h2>
+  <div class="confs">
+    <div><h3>Western Conference</h3><ul class="tlist" id="west"></ul></div>
+    <div><h3>Eastern Conference</h3><ul class="tlist" id="east"></ul></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>Data: NBA stats via nba_api, modelled in dbt on Supabase Postgres. Refreshed nightly.</span>
+    <span>Not affiliated with or endorsed by the NBA.</span>
+  </div>
+</footer>
+
+<script>
+  for (const [conf, el] of [["West", "west"], ["East", "east"]]) {
+    document.getElementById(el).innerHTML = TEAMS.filter((t) => t.c === conf).sort((a, b) => a.n.localeCompare(b.n)).map((t) =>
+      `<li><a href="/"><img src="https://cdn.nba.com/logos/nba/${t.id}/primary/L/logo.svg" alt="" loading="lazy">${t.n}<small>${t.w}-${t.l}</small></a></li>`).join("");
+  }
+  const steps = [...document.querySelectorAll("#steps li")];
+  const so = new IntersectionObserver((es) => es.forEach((e) => {
+    if (!e.isIntersecting) return;
+    const i = +e.target.dataset.step;
+    steps.forEach((s, j) => s.classList.toggle("on", i === j));
+  }), { rootMargin: "-45% 0px -45% 0px" });
+  document.querySelectorAll(".frame").forEach((f) => so.observe(f));
+
+  const io = new IntersectionObserver((es) => es.forEach((e) => (e.isIntersecting || e.boundingClientRect.top < 0) && (e.target.classList.add("in"), io.unobserve(e.target))), { threshold: 0, rootMargin: "0px 0px -8% 0px" });
+  document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+</script>
+</body>
+</html>

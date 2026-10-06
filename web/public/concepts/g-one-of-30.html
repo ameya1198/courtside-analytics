@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Courtside · Concept G: One of 30</title>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@900&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="min.css">
+<script src="teams.js"></script>
+<style>
+  /* 30 unlabeled dots on one line: every team's net rating. Nothing is named until you touch one. */
+  .nav { display: flex; align-items: center; gap: 28px; font-size: 15px; }
+  .nav a.anchor { text-decoration: none; color: var(--muted); transition: color .2s; }
+  .nav a.anchor:hover { color: var(--ink); }
+  .hero { min-height: calc(100dvh - 92px); padding-bottom: 48px; }
+  h1 { font-size: clamp(48px, 7vw, 104px); max-width: 12ch; }
+  .chart { --size: 22px; position: relative; height: 160px; margin-top: 72px; }
+  @media (max-width: 600px) { .chart { --size: 16px; height: 200px; margin-top: 48px; } }
+  .axis { position: absolute; left: 0; right: 0; top: 80px; height: 1px; background: var(--faint); }
+  .dot { position: absolute; top: 80px; width: var(--size); height: var(--size); margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2); border-radius: 50%; border: 0; padding: 0; background: var(--ink); cursor: pointer;
+         transition: transform .25s cubic-bezier(.16,1,.3,1), background-color .25s, opacity .25s; }
+  .chart:hover .dot, .chart.picked .dot { opacity: .22; }
+  .chart .dot:hover, .chart .dot:focus-visible, .chart.picked .dot.on { opacity: 1; transform: scale(1.45); background: var(--c, var(--accent)); }
+  .dot:focus-visible { outline-offset: 6px; }
+  .tip { position: absolute; top: 0; transform: translateX(-50%); font-family: var(--mono); font-size: 13px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .2s; }
+  .tip.show { opacity: 1; }
+  .ends { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .read { margin-top: 56px; min-height: 120px; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 28px; }
+  .read p { font-size: clamp(18px, 1.6vw, 22px); line-height: 1.45; max-width: 44ch; }
+  .read p b { font-weight: 600; }
+  .read .quiet { font-size: 16px; }
+
+  /* Shared section frame */
+  section { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 32px; }
+  h2 { font-size: clamp(40px, 5vw, 72px); max-width: 15ch; }
+  .lede { margin-top: 20px; font-size: clamp(18px, 1.6vw, 21px); line-height: 1.5; color: var(--muted); max-width: 52ch; }
+
+  /* What it is: the questions, without the answers */
+  .what { padding-top: 120px; }
+  .qs { list-style: none; padding: 0; margin-top: 56px; display: grid; grid-template-columns: 1fr 1fr; column-gap: 64px; border-top: 1px solid var(--faint); }
+  .qs li { padding: 26px 0 28px; display: flex; flex-direction: column; gap: 10px; }
+  .qs li:nth-child(n+3) { border-top: 1px solid var(--faint); }
+  .qs q { quotes: none; font-size: clamp(21px, 2vw, 27px); line-height: 1.25; letter-spacing: -.01em; font-weight: 500; }
+  .qs small { font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: .06em; }
+  .qs .t { color: var(--accent); }
+
+  /* How it works: three moves on one line */
+  .how { padding-top: 140px; }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 48px; margin-top: 56px; position: relative; }
+  .steps::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: var(--ink); }
+  .step { padding-top: 32px; }
+  .step h3 { font-family: var(--display); font-weight: 900; text-transform: uppercase; font-size: clamp(32px, 3vw, 44px); line-height: .95; }
+  .step p { margin-top: 14px; font-size: 17px; line-height: 1.55; color: var(--muted); max-width: 34ch; }
+  .source { margin-top: 56px; font-size: 15px; color: var(--muted); line-height: 1.6; max-width: 70ch; }
+  .source b { color: var(--ink); font-weight: 500; }
+
+  .end { padding-top: 140px; padding-bottom: 96px; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 32px; }
+
+  .reveal { opacity: 0; transform: translateY(16px); transition: opacity .6s cubic-bezier(.16,1,.3,1), transform .6s cubic-bezier(.16,1,.3,1); }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; } }
+
+  @media (max-width: 760px) {
+    .nav a.anchor { display: none; }
+    section { padding: 0 16px; }
+    .what { padding-top: 88px; }
+    .qs { grid-template-columns: 1fr; }
+    .qs li:nth-child(2) { border-top: 1px solid var(--faint); }
+    .how, .end { padding-top: 96px; }
+    .steps { grid-template-columns: 1fr; gap: 0; }
+    .steps::before { display: none; }
+    .step { border-top: 2px solid var(--ink); padding: 24px 0 32px; }
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="mark display" href="#">Courtside</a>
+  <nav class="nav"><a class="anchor" href="#what">What it is</a><a class="anchor" href="#how">How it works</a><a class="go" href="/">Pick your team</a></nav>
+</header>
+
+<main class="hero">
+  <h1 class="display">One of these is your team.</h1>
+  <div class="chart" id="chart" role="group" aria-label="Net rating of all 30 teams, 2025-26">
+    <div class="axis"></div>
+    <div class="tip" id="tip"></div>
+  </div>
+  <div class="ends"><span>Worse</span><span>Net rating, 2025-26</span><span>Better</span></div>
+  <div class="read">
+    <p id="read" class="quiet">Find it. Every dot is a team, placed by points scored minus points allowed per 100 possessions.</p>
+    <a class="cta" data-cta href="/">Pick your team</a>
+  </div>
+</main>
+
+<section class="what" id="what">
+  <h2 class="display reveal">Courtside is a front office in eight pages.</h2>
+  <p class="lede reveal">It answers the questions a general manager asks every week, for the team you pick. Every chart opens with the answer.</p>
+  <ol class="qs reveal" id="qs"></ol>
+</section>
+
+<section class="how" id="how">
+  <h2 class="display reveal">How it works.</h2>
+  <div class="steps reveal">
+    <div class="step"><h3>Pick your team.</h3><p>Every page then opens from its side: its players, its schedule, its next opponent, in its colours.</p></div>
+    <div class="step"><h3>Read the headline.</h3><p>Each chart title is the finding and the move, so you know what to do before you read the axis.</p></div>
+    <div class="step"><h3>Come back tomorrow.</h3><p>The numbers reload every night, so the morning after a game they already include it.</p></div>
+  </div>
+  <p class="source reveal"><b>Where the numbers come from.</b> Games, players and shots from nba_api. Salaries and Win Shares from Basketball-Reference. Eleven seasons, cleaned and tested in dbt on a Postgres warehouse.</p>
+</section>
+
+<section class="end">
+  <h2 class="display reveal">Start with your team.</h2>
+  <a class="cta" data-cta href="/">Pick your team</a>
+</section>
+
+<footer class="foot"><span>Unofficial project. Not affiliated with or endorsed by the NBA.</span><span>Team logos and player photos belong to their owners.</span></footer>
+
+<script>
+  const ord = (n) => n + (["th","st","nd","rd"][(n % 100 > 10 && n % 100 < 14) ? 0 : (n % 10 < 4 ? n % 10 : 0)]);
+  const sign = (n) => (n > 0 ? "+" : "") + n.toFixed(1);
+  const ranked = [...TEAMS].sort((a, b) => b.net - a.net);
+  const lo = Math.min(...TEAMS.map((t) => t.net)) - 1, hi = Math.max(...TEAMS.map((t) => t.net)) + 1;
+  const pos = (v) => ((v - lo) / (hi - lo)) * 100;
+  const chart = document.getElementById("chart"), tip = document.getElementById("tip"), read = document.getElementById("read");
+
+  // The questions each page answers. {we}, {us} and {our} become the team's name once a dot is picked.
+  const QS = [
+    ["Who is the team to beat, and who is moving?", "League Pulse"],
+    ["Where do {we} win and lose games?", "Team Report"],
+    ["Where do {we} give up points?", "Defense"],
+    ["Which players are getting better, and which are slipping?", "Player Profile"],
+    ["Who on {our} roster wins more than they cost?", "Player Value"],
+    ["Do back-to-backs cost {us} games?", "Rest and Schedule"],
+    ["How do {we} line up against the next opponent?", "Matchup Scout"],
+    ["Who is playing tonight, and who is starring?", "Tonight"],
+  ];
+  function questions(team) {
+    const name = team ? `<span class="t">the ${team}</span>` : null;
+    document.getElementById("qs").innerHTML = QS.map(([q, page]) =>
+      `<li><q>${q.replace("{we}", name ?? "we").replace("{us}", name ?? "us").replace("{our}", name ?? "our")}</q><small>${page}</small></li>`).join("");
+  }
+  questions(null);
+
+  const sorted = [...TEAMS].sort((a, b) => a.net - b.net);
+  chart.insertAdjacentHTML("beforeend", sorted.map((t) => {
+    const c = COLORS[t.a][0] === "#000000" ? "#3a3d44" : COLORS[t.a][0];
+    return `<button class="dot" type="button" data-a="${t.a}" style="left:${pos(t.net)}%; --c:${c}" aria-label="${t.n}, net rating ${sign(t.net)}"></button>`;
+  }).join(""));
+
+  // Dots that would touch at this width move to the nearest free lane above or below the line
+  function lanes() {
+    const w = chart.clientWidth, size = parseFloat(getComputedStyle(chart).getPropertyValue("--size")) || 22, gap = size + 4;
+    const order = [0, -1, 1, -2, 2, -3, 3], lastX = {};
+    chart.querySelectorAll(".dot").forEach((d) => {
+      const x = (parseFloat(d.style.left) / 100) * w;
+      const lane = order.find((l) => lastX[l] === undefined || x - lastX[l] >= gap) ?? 0;
+      lastX[lane] = x;
+      d.style.top = `${80 + lane * gap}px`;
+    });
+  }
+  lanes(); addEventListener("resize", lanes);
+
+  const say = (t) => {
+    const r = ranked.indexOf(t) + 1;
+    const leak = t.or > t.dr ? `the offense (${ord(t.or)})` : `the defense (${ord(t.dr)})`;
+    return `<b>${t.n}.</b> ${ord(r)} of 30 at ${sign(t.net)}, ${t.w}-${t.l}. The place to look first is ${leak}.`;
+  };
+  chart.querySelectorAll(".dot").forEach((d) => {
+    const t = TEAMS.find((x) => x.a === d.dataset.a);
+    const hover = () => { tip.textContent = `${t.a} ${sign(t.net)}`; tip.style.left = d.style.left; tip.classList.add("show"); };
+    d.addEventListener("mouseenter", hover); d.addEventListener("focus", hover);
+    d.addEventListener("mouseleave", () => tip.classList.remove("show"));
+    d.addEventListener("click", () => {
+      const nick = t.n.split(" ").slice(-1)[0];
+      chart.classList.add("picked");
+      chart.querySelectorAll(".dot").forEach((x) => x.classList.toggle("on", x === d));
+      read.classList.remove("quiet"); read.innerHTML = say(t);
+      document.querySelectorAll("[data-cta]").forEach((a) => (a.textContent = `Open the ${nick} report`));
+      questions(nick);
+    });
+  });
+
+  const io = new IntersectionObserver((es) => es.forEach((e) => (e.isIntersecting || e.boundingClientRect.top < 0) && (e.target.classList.add("in"), io.unobserve(e.target))), { rootMargin: "0px 0px -8% 0px" });
+  document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+</script>
+</body>
+</html>
