@@ -115,6 +115,42 @@ def parse_team_salaries(html: str) -> list[dict]:
     return rows
 
 
+# Advanced stats on the same team page. Ours on the left, Basketball-Reference's data-stat on the right.
+ADVANCED_STATS = {
+    "age": "age", "games": "games", "minutes": "mp", "ows": "ows", "dws": "dws", "ws": "ws",
+    "ws_per_48": "ws_per_48", "obpm": "obpm", "dbpm": "dbpm", "bpm": "bpm", "vorp": "vorp",
+}
+
+
+def parse_number(text: str) -> float | None:
+    """'.323' -> 0.323, '-1.2' -> -1.2, '' -> None."""
+    text = (text or "").strip()
+    try:
+        return float(text) if text else None
+    except ValueError:
+        return None
+
+
+def parse_team_advanced(html: str) -> list[dict]:
+    """Rows of the 'Advanced' table on a team season page: Win Shares, BPM and VORP per player.
+
+    Regular season only (the playoff version is a separate table, advanced_post).
+    """
+    soup = _soup(html)
+    table = soup.find("table", id="advanced")
+    if table is None:
+        return []
+    rows = []
+    for row in table.select("tbody tr"):
+        bbref_id, name = _player_cell(row)
+        if not bbref_id:
+            continue  # header repeats and the team total row have no player link
+        cells = {c.get("data-stat"): c.get_text(strip=True) for c in row.find_all(["th", "td"])}
+        rows.append({"bbref_id": bbref_id, "player_name": name,
+                     **{ours: parse_number(cells.get(theirs, "")) for ours, theirs in ADVANCED_STATS.items()}})
+    return rows
+
+
 def parse_contracts(html: str) -> list[dict]:
     """Rows of the league contracts table: one row per player per season listed."""
     soup = _soup(html)

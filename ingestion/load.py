@@ -9,7 +9,7 @@ Usage:
     python -m ingestion.load --shots-backfill       # all shots since SHOTS_START_SEASON
     python -m ingestion.load --extras               # clutch, player bio and schedule for this season (nightly)
     python -m ingestion.load --extras-backfill      # clutch and bio for every season since BACKFILL_START_SEASON
-    python -m ingestion.load --salaries             # salaries from Basketball-Reference since SALARY_START_SEASON
+    python -m ingestion.load --salaries             # salaries, Win Shares and VORP from Basketball-Reference
     python -m ingestion.load --defense              # player and team defense for this season (nightly)
     python -m ingestion.load --defense-backfill     # the same since DEFENSE_START_SEASON (default 2024)
 
@@ -410,7 +410,11 @@ def print_defense_counts(engine) -> None:
 
 
 def load_salaries(engine, first_season: int, last_season: int) -> None:
-    """Past and current seasons from team pages, then this and future seasons from the contracts page."""
+    """Past and current seasons from team pages, then this and future seasons from the contracts page.
+
+    The team pages also carry the Advanced table (Win Shares, BPM, VORP), so we save that from the
+    same download into raw.player_advanced.
+    """
     index = salaries.build_name_index(nba_client.get_players().to_dict("records"))
     unmatched: set[str] = set()
 
@@ -425,19 +429,32 @@ def load_salaries(engine, first_season: int, last_season: int) -> None:
 
     for season in range(first_season, last_season + 1):
         run_id = start_run(engine, "salaries:team_page", season)
+        adv_run = start_run(engine, "player_advanced:team_page", season)
         try:
-            rows = []
+            rows, advanced = [], []
             for team in salaries.NBA_TEAMS:
-                for row in salaries.parse_team_salaries(salaries.fetch(salaries.team_page_url(team, season))):
-                    rows.append({**row, "team": salaries.bbref_team(team), "season": season})
+                html = salaries.fetch(salaries.team_page_url(team, season))  # one download, two tables
+                code = salaries.bbref_team(team)
+                for row in salaries.parse_team_salaries(html):
+                    rows.append({**row, "team": code, "season": season})
+                for row in salaries.parse_team_advanced(html):
+                    advanced.append({**row, "team": code, "season": season})
             df = with_ids(rows)
             if not df.empty:
                 df["source"] = "team_page"
             replace_rows(engine, "salaries", df, "season = :s and source = 'team_page'", {"s": season})
             finish_run(engine, run_id, "success", rows=len(df))
             print(f"salaries {season} (team pages): loaded {len(df)} rows")
+
+            adv = with_ids(advanced)
+            if not adv.empty:
+                adv["games"] = adv["games"].round().astype("Int64")
+            replace_rows(engine, "player_advanced", adv, "season = :s", {"s": season})
+            finish_run(engine, adv_run, "success", rows=len(adv))
+            print(f"player_advanced {season} (team pages): loaded {len(adv)} rows")
         except Exception as error:
             finish_run(engine, run_id, "failed", error=str(error)[:500])
+            finish_run(engine, adv_run, "failed", error=str(error)[:500])
             raise
 
     run_id = start_run(engine, "salaries:contracts_page", None)
@@ -499,7 +516,7 @@ def main() -> None:
     parser.add_argument("--shots-backfill", action="store_true", help="load all shots")
     parser.add_argument("--extras", action="store_true", help="clutch, bio and schedule for this season")
     parser.add_argument("--extras-backfill", action="store_true", help="clutch and bio for all seasons")
-    parser.add_argument("--salaries", action="store_true", help="salaries from Basketball-Reference")
+    parser.add_argument("--salaries", action="store_true", help="salaries and advanced stats from Basketball-Reference")
     parser.add_argument("--defense", action="store_true", help="player and team defense for this season")
     parser.add_argument("--defense-backfill", action="store_true", help="the defense tables since DEFENSE_START_SEASON")
     args = parser.parse_args()
