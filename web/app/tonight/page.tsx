@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ChartCard } from "@/components/chart-card";
+import { Legend } from "@/components/charts/html";
 import { HorizontalBarChart } from "@/components/charts/recharts";
 import { Empty, Heading, Notice, Section, Wrap } from "@/components/blocks";
 import { Hero } from "@/components/hero";
@@ -134,6 +135,10 @@ export default async function Tonight({ searchParams }: { searchParams: Promise<
             }
             caption={`Away team on top, home team below. ${allPlayed ? "The winner is filled." : "Tip-off times are US Eastern."} ${ratingNote}`}
           />
+          <Legend items={[
+            { label: "Winner", color: "var(--accent)" },
+            { label: "Second night of a back-to-back", color: "var(--warn)" },
+          ]} />
           <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,360px),1fr))] gap-4">
             {[...d.games].sort((x, y) => Number(isMine(y)) - Number(isMine(x))).map((g) => (
               <GameCard key={g.id} g={g} mine={isMine(g) && mine ? `${mine.city} ${mine.name}` : undefined} />
@@ -144,9 +149,10 @@ export default async function Tonight({ searchParams }: { searchParams: Promise<
         {results.length > 1 ? (
           <Section className="flex flex-col gap-6">
             <ChartCard title={`Biggest margin: ${results[0].winner} by ${results[0].m}.`} description="Winning margin by game"
-              note="The accent colour means the home team won.">
+              legend={[{ label: "Home team won", color: "var(--accent)" }, { label: "Away team won", color: "var(--ink)" }]}
+              note="The number is the winning margin.">
               <HorizontalBarChart
-                name="Margin" icon="trophy" categoryWidth={110}
+                name="Margin" icon="trophy" categoryWidth={140}
                 data={results.map((x) => ({
                   key: String(x.g.id), label: `${x.winner} over ${x.loser}`, value: x.m, valueText: `+${x.m}`,
                   fill: x.winner === x.g.home ? "var(--accent)" : "var(--ink)",

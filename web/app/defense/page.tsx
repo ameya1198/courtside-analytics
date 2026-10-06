@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Empty, Heading, Section, Wrap } from "@/components/blocks";
 import { ChartCard } from "@/components/chart-card";
-import { DivergingBar, FactorTable, ShotHeatmap, ZoneRows } from "@/components/charts/html";
+import { DivergingBar, FactorTable, Legend, ShotHeatmap, ZoneRows } from "@/components/charts/html";
 import { DefRatingChart, HorizontalBarChart } from "@/components/charts/recharts";
 import { Hero, KpiRow } from "@/components/hero";
 import { ParamSelect } from "@/components/param-select";
@@ -23,7 +23,10 @@ export default async function Defense({ searchParams }: { searchParams: Promise<
   const mine = await myTeam();
   const oppParam = one(sp.opp);
   const opp = oppParam && /^[A-Za-z]{3}$/.test(oppParam) ? oppParam.toUpperCase() : null;
-  const d = await pageData<DefenseData>("defense", [parseSeason(sp.season), mine?.abbr ?? null, opp]);
+  // Shot section game type: ?type=regular or ?type=playoffs, both by default
+  const typeParam = one(sp.type);
+  const shotType = typeParam === "regular" ? "Regular Season" : typeParam === "playoffs" ? "Playoffs" : null;
+  const d = await pageData<DefenseData>("defense", [parseSeason(sp.season), mine?.abbr ?? null, opp, shotType]);
   const t = d.team;
   if (!t) return <Wrap className="py-20"><Empty>No games for this team and season yet.</Empty></Wrap>;
 
@@ -32,7 +35,15 @@ export default async function Defense({ searchParams }: { searchParams: Promise<
   const change = t.prev_drtg !== null ? t.drtg - t.prev_drtg : null;
 
   const chosen = d.opponent;
-  const chosenGames = chosen ? d.opponents.find((o) => o[0] === chosen)?.[1] ?? 0 : t.gp;
+  const chosenGames = chosen ? d.opponents.find((o) => o[0] === chosen)?.[1] ?? 0 : d.shotGames ?? t.gp;
+  const label = (y: number) => `${y}-${String((y + 1) % 100).padStart(2, "0")}`;
+  const shotScope = `${d.shotSeasons ? `${label(d.shotSeasons[0])} and ${label(d.shotSeasons[1])}` : d.seasonLabel}, ${
+    shotType === "Regular Season" ? "regular season" : shotType === "Playoffs" ? "playoffs" : "regular season and playoffs"}`;
+  const typeOptions = [
+    { value: "both", label: "Regular season and playoffs" },
+    { value: "regular", label: "Regular season" },
+    { value: "playoffs", label: "Playoffs" },
+  ];
   const who = chosen ?? "Opponents";
   const cmpLabel = chosen ? "their usual rate" : "the league average";
   const oppOptions = [
@@ -69,7 +80,13 @@ export default async function Defense({ searchParams }: { searchParams: Promise<
 
       <Wrap>
         <Section className="flex flex-col gap-6">
-          <Heading title={defTrendHeadline(t.abbr, series, d.leagueDrtg)} caption="Defensive rating over the last 10 games, game by game. Lower is better. The dashed line is the league average." />
+          <Heading title={defTrendHeadline(t.abbr, series, d.leagueDrtg)} caption="Defensive rating over the last 10 games, game by game. Lower is better." />
+          <Legend items={[
+            { label: "10-game defensive rating", color: "var(--accent)", kind: "line" },
+            { label: "League average", color: "var(--panel-muted)", kind: "dashed" },
+            { label: "Best stretch", color: "var(--ink)", kind: "dot" },
+            { label: "Worst stretch", color: "var(--warn)", kind: "dot" },
+          ]} />
           {series.length >= 2 ? (
             <DefRatingChart data={series} league={d.leagueDrtg} />
           ) : (
@@ -77,29 +94,33 @@ export default async function Defense({ searchParams }: { searchParams: Promise<
           )}
         </Section>
 
-        <Section className="grid gap-12 lg:grid-cols-[1.2fr_1fr]">
-          <div className="flex flex-col gap-5">
-            {f ? (
-              <>
-                <Heading size="md" title={defFactorsHeadline(f)} caption="The four things a defense controls. Rank 1 is the best defense in each." />
-                <FactorTable
-                  abbr={t.abbr}
-                  meta={DEF_FACTOR_META}
-                  team={f}
-                  league={d.leagueFactors}
-                  ranks={{ opp_efg: f.opp_efg_rank, forced_tov: f.forced_tov_rank, dreb: f.dreb_rank, opp_ftr: f.opp_ftr_rank }}
-                />
-              </>
-            ) : null}
-          </div>
-          <div className="flex flex-col gap-5">
+        {/* Two equal cards side by side */}
+        <Section className="grid items-stretch gap-6 lg:grid-cols-2">
+          {f ? (
+            <ChartCard className="h-full" title={defFactorsHeadline(f)} description="The four things a defense controls. Rank 1 is the best defense in each.">
+              <FactorTable
+                abbr={t.abbr}
+                meta={DEF_FACTOR_META}
+                team={f}
+                league={d.leagueFactors}
+                ranks={{ opp_efg: f.opp_efg_rank, forced_tov: f.forced_tov_rank, dreb: f.dreb_rank, opp_ftr: f.opp_ftr_rank }}
+              />
+            </ChartCard>
+          ) : <div />}
+          <div className="flex flex-col">
             <ChartCard
+              className="h-full"
               title={`${ordinal(t.def_rank)} of 30. ${t.def_rank === 1 ? `${(d.ranking[1][1] - t.drtg).toFixed(1)} clear of ${d.ranking[1][0]}.` : `${(t.drtg - d.ranking[0][1]).toFixed(1)} behind ${d.ranking[0][0]}.`}`}
               description="Defensive rating against the league average"
-              note="Bars to the right are better. The number is points allowed per 100 possessions."
+              legend={[
+                { label: t.abbr, color: "var(--accent)" },
+                { label: "Other teams", color: "var(--ink)" },
+                { label: "League average", color: "var(--panel-muted)", kind: "dashed" },
+              ]}
+              note="Bars to the right are better. The number is points allowed per 100 possessions. Scroll for all 30 teams."
             >
               <HorizontalBarChart
-                name="Defensive rating" icon="scale" refLine={0} domain={[-spread, spread]} categoryWidth={44} rowHeight={22}
+                name="Defensive rating" icon="scale" refLine={0} domain={[-spread, spread]} categoryWidth={52} rowHeight={32} labelSize={18} maxHeight={420} focusKey={t.abbr}
                 data={d.ranking.map(([abbr, r]) => ({
                   key: abbr, label: abbr, value: d.leagueDrtg - r, valueText: r.toFixed(1),
                   fill: abbr === t.abbr ? "var(--accent)" : "var(--ink)",
@@ -111,22 +132,27 @@ export default async function Defense({ searchParams }: { searchParams: Promise<
         </Section>
 
         <Section className="flex flex-col gap-6">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div className="max-w-[880px] flex-1">
+          {/* Heading across the full width, filters on their own line under it */}
+          <div className="flex flex-col gap-4">
+            <div>
               <Heading
                 title={defZonesHeadline(d.zones, d.compareZones, who, cmpLabel)}
-                caption={`Where ${chosen ? `${chosen} shoot` : "opponents shoot"} against ${t.abbr}: ${d.shotCount.toLocaleString()} shots over ${chosenGames} game${chosenGames === 1 ? "" : "s"}. Brighter means more shots.${chosen ? " One opponent is a small sample, so treat gaps as signals." : ""}`}
+                caption={`Where ${chosen ? `${chosen} shoot` : "opponents shoot"} against ${t.abbr}: ${d.shotCount.toLocaleString()} shots over ${chosenGames} game${chosenGames === 1 ? "" : "s"} in ${shotScope}. Red means more shots, blue fewer.${chosen ? " One opponent is a small sample, so treat gaps as signals." : ""}`}
               />
             </div>
-            <ParamSelect name="opp" label="Opponent" value={chosen ?? "all"} options={oppOptions} />
+            <div className="flex flex-wrap gap-2">
+              <ParamSelect name="type" label="Games" value={typeParam === "regular" || typeParam === "playoffs" ? typeParam : "both"} options={typeOptions} />
+              <ParamSelect name="opp" label="Opponent" value={chosen ?? "all"} options={oppOptions} />
+            </div>
           </div>
           {d.shotCount ? (
-            <div className="grid items-start gap-12 lg:grid-cols-[1fr_1.1fr]">
-              <div className="border border-line"><ShotHeatmap bins={d.bins} /></div>
+            <div className="grid items-stretch gap-12 lg:grid-cols-[1fr_1.1fr]">
+              {/* The court box stretches to the zone table's height, with the court centred in it */}
+              <div className="flex items-center border border-line"><div className="w-full"><ShotHeatmap bins={d.bins} /></div></div>
               <ZoneRows zones={d.zones} compare={d.compareZones} abbr={chosen ?? "Opp"} compareLabel={chosen ? "Usual" : "League"} />
             </div>
           ) : (
-            <Empty>No shot locations for this season. Shot charts cover 2024-25 onward.</Empty>
+            <Empty>No shot locations for these games. Shot charts cover 2024-25 onward.</Empty>
           )}
         </Section>
 
@@ -175,6 +201,10 @@ export default async function Defense({ searchParams }: { searchParams: Promise<
             title={defImpactHeadline(d.players, t.name)}
             caption="On/off is the points the team allows per 100 possessions with him off the court, minus with him on. Positive means the team defends better when he plays. Defended FG% is how opponents shoot when he is the closest defender, against what those shooters usually hit. Negative is good. Players with 500+ minutes and 20+ games. On/off depends on who he plays with, so treat it as a signal, not proof."
           />
+          <Legend items={[
+            { label: "Good: team defends better with him on, opponents shoot worse", color: "var(--accent)" },
+            { label: "Bad: team defends worse with him on, opponents shoot better", color: "var(--warn)" },
+          ]} />
           {impact.length ? (
             <div className="overflow-x-auto">
               <div className="min-w-[980px]">
@@ -224,6 +254,11 @@ export default async function Defense({ searchParams }: { searchParams: Promise<
               title={defMiscHeadline(misc, t.abbr)}
               caption="Points opponents score per game four ways, with the league rank. Rank 1 allows the fewest."
             />
+            <Legend items={[
+              { label: "Top 5 in the league", color: "var(--accent)" },
+              { label: "Bottom 10", color: "var(--warn)" },
+              { label: "In between", color: "var(--ink)" },
+            ]} />
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {MISC_META.map((m) => {
                 const value = misc[m.key];

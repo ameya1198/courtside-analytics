@@ -111,6 +111,7 @@ export default async function LeaguePulse({ searchParams }: { searchParams: Prom
                 { list: fallers, fill: "var(--warn)", title: `${fallers[0].t.name} fell the most: ${signed(fallers[0].change)} on last season`, dir: "down" as const, name: "Fallers" },
               ]).map((side) => (
                 <ChartCard key={side.name} title={side.title} description={`${side.name}: change in net rating from last season`}
+                  legend={[{ label: side.name === "Risers" ? "Net rating gained" : "Net rating lost", color: side.fill }]}
                   trend={`${side.list[0].t.abbr} went from ${signed(side.list[0].from)} to ${signed(side.list[0].t.net)}`} direction={side.dir}>
                   {/* Bar length is the size of the change, so risers and fallers share one scale */}
                   <HorizontalBarChart
@@ -134,6 +135,7 @@ export default async function LeaguePulse({ searchParams }: { searchParams: Prom
               description={`Share of field goal attempts that were threes, ${firstRate.label} to ${lastRate.label}`}
               trend={`${lastRate.rate >= firstRate.rate ? "Up" : "Down"} ${Math.abs((lastRate.rate - firstRate.rate) * 100).toFixed(1)} points since ${firstRate.label}`}
               direction={lastRate.rate >= firstRate.rate ? "up" : "down"}
+              legend={[{ label: "Latest season", color: "var(--accent)" }, { label: "Earlier seasons", color: "var(--panel-dot)" }]}
               note={`${firstRate.label}: ${(firstRate.rate * 100).toFixed(1)}%. ${lastRate.label}: ${(lastRate.rate * 100).toFixed(1)}%. Regular seasons only.`}
             >
               <ThreeRateChart data={rates} />

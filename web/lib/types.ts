@@ -62,16 +62,23 @@ export type PlayerData = {
 };
 
 // [player_id, name, team, age, salary, fantasy_ppg, pts_per_36, ts_pct, dollars_per_fantasy_pt, games]
-export type ValueRow = [number, string, string, number | null, number, number, number, number, number, number];
+// [player_id, name, team, age, salary, win shares, vorp, ws per 48, dollars per win share, games, ows, dws]
+export type ValueRow = [number, string, string, number | null, number, number, number | null, number | null, number | null, number, number, number];
+
+/** A player in the bargain or worst-contract list. per_ws is salary per Win Share (null = no wins). */
+export type ValuePick = {
+  player_id: number; player_name: string; team: string; salary: number; games: number;
+  ws: number; ows: number; dws: number; vorp: number | null; per_ws: number | null;
+};
 
 export type ValueData = {
   season: number | null; seasonLabel: string | null; seasons: number[];
-  qualifiedCount: number; pricedCount: number; medianSalary: number | null; medianProduction: number | null;
+  qualifiedCount: number; pricedCount: number; medianSalary: number | null; medianWs: number | null;
   players: ValueRow[];
-  bargains: { player_id: number; player_name: string; team: string; salary: number; fantasy_ppg: number; per_pt: number }[];
-  worst: { player_id: number; player_name: string; team: string; salary: number; fantasy_ppg: number; games: number; per_pt: number }[];
-  leaders: { player_id: number; player_name: string; team: string; ppg: number; p36: number; ts: number; salary: number | null }[];
-  ages: { age: number; players: number; fantasy_ppg: number }[];
+  bargains: ValuePick[];
+  worst: ValuePick[];
+  leaders: { player_id: number; player_name: string; team: string; vorp: number; bpm: number | null; obpm: number | null; dbpm: number | null; ws: number | null; salary: number | null }[];
+  ages: { age: number; players: number; ws48: number }[];
 };
 
 export type RestData = {
@@ -142,6 +149,8 @@ export type DefenseData = {
   opponents: [string, number][];
   opponent: string | null;
   shotCount: number;
+  /** Shot section scope: games with shots, [first season, last season], and the game type (null = both). */
+  shotGames?: number; shotSeasons?: [number, number]; shotType?: string | null;
   zones: Zone[];
   compareZones: Zone[];
   bins: [number, number, number, number][];

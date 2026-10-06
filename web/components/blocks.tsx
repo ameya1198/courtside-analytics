@@ -7,8 +7,10 @@ export function Wrap({ className, children }: { className?: string; children: Re
 /** Section title: one actionable sentence, then a short line saying what the chart shows. */
 export function Heading({ title, caption, size = "lg" }: { title: string; caption?: string; size?: "lg" | "md" }) {
   return (
-    <div className="flex max-w-[880px] flex-col gap-2">
-      <h2 className={cn("display text-balance", size === "lg" ? "text-[clamp(30px,4vw,48px)]" : "text-[clamp(26px,3vw,38px)]")}>
+    // Big headings sit above full-width charts: span the whole width and fill each line.
+    // Smaller ones sit in half-width columns, where evenly balanced lines read better.
+    <div className="flex flex-col gap-2">
+      <h2 className={cn("display", size === "lg" ? "text-pretty text-[clamp(30px,4vw,48px)]" : "text-balance text-[clamp(26px,3vw,38px)]")}>
         {title}
       </h2>
       {caption ? <p className="text-pretty text-[16px] text-muted">{caption}</p> : null}

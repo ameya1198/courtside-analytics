@@ -1,12 +1,14 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+
 import {
   Bar, BarChart, CartesianGrid, Cell, LabelList, Line, LineChart, ReferenceDot, ReferenceLine,
   Scatter, ScatterChart, XAxis, YAxis, ZAxis,
 } from "recharts";
 import {
   Activity, BatteryLow, BedDouble, CalendarDays, CircleDollarSign, CircleX, Crosshair, Flame, Hand, Handshake, History, House,
-  Medal, Scale, Star, Swords, Target, Trophy, TrendingDown, TrendingUp, Users,
+  Medal, Scale, Swords, Target, Trophy, TrendingDown, TrendingUp, Users,
 } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig, type TooltipRow } from "@/components/ui/chart";
 
@@ -16,6 +18,8 @@ const barAxis = { ...axis, tickMargin: 10 } as const;
 // Tooltips jump to each new point instead of sliding there: Recharts' default 400ms slide made them lag and wobble.
 const tip = { isAnimationActive: false } as const;
 const signedNum = (v: number) => `${v > 0 ? "+" : ""}${v}`;
+// Small value labels above vertical bars
+const barLabel = { position: "top", offset: 6, className: "fill-[var(--ink)] font-mono text-[11px]" } as const;
 
 /** Share of shots that were threes, one bar per season. The latest season takes the accent colour. */
 export function ThreeRateChart({ data }: { data: { label: string; rate: number }[] }) {
@@ -23,7 +27,7 @@ export function ThreeRateChart({ data }: { data: { label: string; rate: number }
   const rows = data.map((d) => ({ ...d, pct: Math.round(d.rate * 1000) / 10 }));
   return (
     <ChartContainer config={config} className="aspect-auto h-[300px] w-full">
-      <BarChart accessibilityLayer data={rows}>
+      <BarChart accessibilityLayer data={rows} margin={{ top: 22 }}>
         <CartesianGrid vertical={false} stroke="var(--panel-grid)" strokeDasharray="3 3" strokeOpacity={0.7} />
         <XAxis dataKey="label" {...barAxis} tickFormatter={(v: string) => v.slice(2)} />
         <ChartTooltip {...tip} cursor={false} content={<ChartTooltipContent labelFormatter={(_, p) => p?.[0]?.payload?.label}
@@ -32,6 +36,7 @@ export function ThreeRateChart({ data }: { data: { label: string; rate: number }
           {rows.map((r, i) => (
             <Cell key={r.label} fill={i === rows.length - 1 ? "var(--accent)" : "var(--color-pct)"} />
           ))}
+          <LabelList dataKey="pct" {...barLabel} formatter={(v: number) => `${v}%`} />
         </Bar>
       </BarChart>
     </ChartContainer>
@@ -102,7 +107,7 @@ export function GameBarsChart({ data, average }: {
   } satisfies ChartConfig;
   return (
     <ChartContainer config={config} className="aspect-auto h-[280px] w-full">
-      <BarChart accessibilityLayer data={data}>
+      <BarChart accessibilityLayer data={data} margin={{ top: 22 }}>
         <CartesianGrid vertical={false} stroke="var(--panel-grid)" strokeDasharray="3 3" strokeOpacity={0.7} />
         <XAxis dataKey="label" {...barAxis} interval={0} tick={{ ...barAxis.tick, fontSize: 10 }} />
         <ChartTooltip {...tip} cursor={false} content={<ChartTooltipContent labelFormatter={(_, p) => p?.[0]?.payload?.tip}
@@ -115,6 +120,7 @@ export function GameBarsChart({ data, average }: {
           {data.map((d, i) => (
             <Cell key={i} fill={d.win ? "var(--color-pts)" : "var(--warn)"} />
           ))}
+          <LabelList dataKey="pts" {...barLabel} />
         </Bar>
       </BarChart>
     </ChartContainer>
@@ -168,7 +174,7 @@ export function RestBucketsChart({ data }: { data: { label: string; win: number;
   } satisfies ChartConfig;
   return (
     <ChartContainer config={config} className="aspect-auto h-[300px] w-full">
-      <BarChart accessibilityLayer data={data}>
+      <BarChart accessibilityLayer data={data} margin={{ top: 22 }}>
         <CartesianGrid vertical={false} stroke="var(--panel-grid)" strokeDasharray="3 3" strokeOpacity={0.7} />
         <XAxis dataKey="label" {...barAxis} />
         <ChartTooltip {...tip} cursor={false} content={<ChartTooltipContent labelFormatter={(_, p) => p?.[0]?.payload?.label}
@@ -182,6 +188,7 @@ export function RestBucketsChart({ data }: { data: { label: string; win: number;
           {data.map((d, i) => (
             <Cell key={d.label} fill={i === 0 ? "var(--warn)" : "var(--color-win)"} />
           ))}
+          <LabelList dataKey="win" {...barLabel} formatter={(v: number) => `${v}%`} />
         </Bar>
       </BarChart>
     </ChartContainer>
@@ -192,27 +199,30 @@ export function RestBucketsChart({ data }: { data: { label: string; win: number;
 export function SalaryQuadrantChart({
   points, medianSalary, medianProduction, highlight,
 }: {
-  points: { id: number; name: string; team: string; salaryM: number; fppg: number }[];
+  points: { id: number; name: string; team: string; salaryM: number; ws: number; perWs: number | null }[];
   medianSalary: number; medianProduction: number; highlight: number[];
 }) {
   const config = {
-    fppg: { label: "Fantasy pts a game", color: "var(--panel-dot)", icon: Star },
+    ws: { label: "Win Shares", color: "var(--panel-dot)", icon: Trophy },
     salary: { label: "Salary", icon: CircleDollarSign },
+    perWs: { label: "$ per Win Share", icon: Scale },
   } satisfies ChartConfig;
   const hot = new Set(highlight);
   const rest = points.filter((p) => !hot.has(p.id));
   // Keep the caller's order, so the first highlighted player gets the label.
   const marked = highlight.map((id) => points.find((p) => p.id === id)).filter((p): p is NonNullable<typeof p> => Boolean(p));
   const xMax = Math.ceil(Math.max(...points.map((p) => p.salaryM)) / 10) * 10;
-  const yMax = Math.ceil(Math.max(...points.map((p) => p.fppg)) / 10) * 10;
+  // Win Shares can dip below zero for players who hurt their team
+  const yMax = Math.ceil(Math.max(...points.map((p) => p.ws)) / 5) * 5;
+  const yMin = Math.min(0, Math.floor(Math.min(...points.map((p) => p.ws))));
   return (
     <ChartContainer config={config} className="aspect-auto h-[460px] w-full">
       <ScatterChart margin={{ top: 24, right: 24, left: 0, bottom: 20 }}>
         <CartesianGrid stroke="var(--panel-grid)" strokeDasharray="3 3" strokeOpacity={0.7} />
         <XAxis type="number" dataKey="salaryM" {...axis} domain={[0, xMax]} tickFormatter={(v) => `$${v}M`}
           label={{ value: "SALARY", position: "insideBottom", offset: -14, fill: "var(--panel-muted)", fontFamily: "var(--font-mono)", fontSize: 11 }} />
-        <YAxis type="number" dataKey="fppg" {...axis} width={44} domain={[0, yMax]}
-          label={{ value: "FANTASY PTS / GAME", angle: -90, position: "insideLeft", offset: 12, fill: "var(--panel-muted)", fontFamily: "var(--font-mono)", fontSize: 11 }} />
+        <YAxis type="number" dataKey="ws" {...axis} width={44} domain={[yMin, yMax]}
+          label={{ value: "WIN SHARES", angle: -90, position: "insideLeft", offset: 12, fill: "var(--panel-muted)", fontFamily: "var(--font-mono)", fontSize: 11 }} />
         <ZAxis range={[36, 36]} />
         <ReferenceLine x={medianSalary} stroke="var(--panel-muted)" strokeDasharray="4 4" />
         <ReferenceLine y={medianProduction} stroke="var(--panel-muted)" strokeDasharray="4 4" />
@@ -220,7 +230,10 @@ export function SalaryQuadrantChart({
           cursor={false}
           {...tip}
           content={<ChartTooltipContent labelFormatter={(_, p) => `${p?.[0]?.payload?.name} · ${p?.[0]?.payload?.team}`}
-            rows={(d) => [{ key: "salary", value: `$${d.salaryM.toFixed(1)}M` }, { key: "fppg", value: d.fppg }]} />}
+            rows={(d) => [
+              { key: "salary", value: `$${d.salaryM.toFixed(1)}M` }, { key: "ws", value: d.ws.toFixed(1) },
+              { key: "perWs", value: d.perWs ? `$${Math.round(d.perWs).toLocaleString()}` : "No wins" },
+            ]} />}
         />
         <Scatter data={rest} fill="var(--panel-dot)" fillOpacity={0.8} isAnimationActive={false} />
         <Scatter data={marked.slice(1)} fill="var(--accent)" stroke="var(--panel-ink)" strokeWidth={2} isAnimationActive={false} />
@@ -233,22 +246,23 @@ export function SalaryQuadrantChart({
 }
 
 /** Average production by age across every season we hold. The peak age takes the accent colour. */
-export function AgeCurveChart({ data, peak }: { data: { age: number; fppg: number; players: number }[]; peak: number }) {
+export function AgeCurveChart({ data, peak }: { data: { age: number; ws48: number; players: number }[]; peak: number }) {
   const config = {
-    fppg: { label: "Fantasy pts a game", color: "var(--panel-dot)", icon: Star },
+    ws48: { label: "Win Shares per 48", color: "var(--panel-dot)", icon: Trophy },
     players: { label: "Player-seasons", icon: Users },
   } satisfies ChartConfig;
   return (
     <ChartContainer config={config} className="aspect-auto h-[280px] w-full">
-      <BarChart accessibilityLayer data={data}>
+      <BarChart accessibilityLayer data={data} margin={{ top: 22 }}>
         <CartesianGrid vertical={false} stroke="var(--panel-grid)" strokeDasharray="3 3" strokeOpacity={0.7} />
         <XAxis dataKey="age" {...barAxis} interval={0} />
         <ChartTooltip {...tip} cursor={false} content={<ChartTooltipContent labelFormatter={(_, p) => `Age ${p?.[0]?.payload?.age}`}
-          rows={(d) => [{ key: "fppg", value: d.fppg }, { key: "players", value: d.players }]} />} />
-        <Bar dataKey="fppg" fill="var(--color-fppg)" radius={8} isAnimationActive={false}>
+          rows={(d) => [{ key: "ws48", value: d.ws48.toFixed(3).replace(/^0/, "") }, { key: "players", value: d.players }]} />} />
+        <Bar dataKey="ws48" fill="var(--color-ws48)" radius={8} isAnimationActive={false}>
           {data.map((d) => (
-            <Cell key={d.age} fill={d.age === peak ? "var(--accent)" : "var(--color-fppg)"} />
+            <Cell key={d.age} fill={d.age === peak ? "var(--accent)" : "var(--color-ws48)"} />
           ))}
+          <LabelList dataKey="ws48" {...barLabel} formatter={(v: number) => v.toFixed(3).replace(/^0/, "")} />
         </Bar>
       </BarChart>
     </ChartContainer>
@@ -269,13 +283,25 @@ const ICONS = {
 export type IconName = keyof typeof ICONS;
 
 /** One bar. `tips` are extra tooltip rows shown under the value. */
+/** An SVG axis label in the site's display font (big, condensed, uppercase), like the old HTML bar lists. */
+function DisplayTick({ x, y, text, size, anchor }: { x: number; y: number; text: string; size: number; anchor: "start" | "end" }) {
+  return (
+    <text x={x} y={y} dy={size * 0.36} textAnchor={anchor} fill="var(--ink)"
+      style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: size, letterSpacing: "0.03em" }}>
+      {text.toUpperCase()}
+    </text>
+  );
+}
+
+type TickProps = { x: number; y: number; payload: { value: string } };
+
 export type HBar = {
   key: string; label: string; value: number; valueText: string; fill?: string;
   tips?: { label: string; value: string; icon?: IconName }[];
 };
 
 export function HorizontalBarChart({
-  data, name, icon, domain, refLine, categoryWidth = 64, rowHeight = 40,
+  data, name, icon, domain, refLine, categoryWidth = 64, rowHeight = 40, maxHeight, focusKey, labelSize = 20, bigValues = false,
 }: {
   data: HBar[];
   /** Tooltip label for the value, e.g. "Percentile". */
@@ -287,17 +313,34 @@ export function HorizontalBarChart({
   refLine?: number;
   categoryWidth?: number;
   rowHeight?: number;
+  /** For long lists: cap the box at this height and scroll inside it. */
+  maxHeight?: number;
+  /** In a scrolling box, start with this row in view (e.g. the chosen team). */
+  focusKey?: string;
+  /** Font size of the row labels on the left (display font). */
+  labelSize?: number;
+  /** Show the values on the right as big display numbers (percentiles), not small mono text. */
+  bigValues?: boolean;
 }) {
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const i = focusKey ? data.findIndex((d) => d.key === focusKey) : -1;
+    if (box.current && maxHeight && i >= 0) box.current.scrollTop = Math.max(0, i * rowHeight - maxHeight / 2);
+  }, [focusKey, data, rowHeight, maxHeight]);
+  // The scroll box uses inline styles, not Tailwind classes, so it clips even before a stylesheet rebuild.
   const config = { value: { label: name, color: "var(--accent)", icon: icon ? ICONS[icon] : undefined } } satisfies ChartConfig;
   const byKey = new Map(data.map((d) => [d.key, d]));
   return (
+    <div ref={box} style={maxHeight ? { maxHeight, overflowY: "auto", overflowX: "hidden", overscrollBehavior: "contain", paddingRight: 4 } : undefined}>
     <ChartContainer config={config} className="aspect-auto w-full" style={{ height: data.length * rowHeight + 8 }}>
       <BarChart accessibilityLayer data={data} layout="vertical" margin={{ left: 0, right: 0 }}>
         <XAxis type="number" dataKey="value" hide domain={domain ?? [0, "dataMax"]} />
-        <YAxis dataKey="key" type="category" {...axis} tickMargin={10} width={categoryWidth}
-          tickFormatter={(k: string) => byKey.get(k)?.label ?? k} />
-        <YAxis yAxisId="value" orientation="right" dataKey="key" type="category" {...axis} tickMargin={8} width={72}
-          tickFormatter={(k: string) => byKey.get(k)?.valueText ?? ""} />
+        <YAxis dataKey="key" type="category" {...axis} tickMargin={10} width={categoryWidth} interval={0}
+          tick={(t: TickProps) => <DisplayTick x={t.x} y={t.y} anchor="end" size={labelSize} text={byKey.get(t.payload.value)?.label ?? t.payload.value} />} />
+        <YAxis yAxisId="value" orientation="right" dataKey="key" type="category" {...axis} tickMargin={8} width={bigValues ? 64 : 72} interval={0}
+          {...(bigValues
+            ? { tick: (t: TickProps) => <DisplayTick x={t.x} y={t.y} anchor="start" size={30} text={byKey.get(t.payload.value)?.valueText ?? ""} /> }
+            : { tickFormatter: (k: string) => byKey.get(k)?.valueText ?? "" })} />
         {refLine !== undefined ? <ReferenceLine x={refLine} stroke="var(--panel-muted)" strokeDasharray="4 4" /> : null}
         <ChartTooltip {...tip} cursor={false} content={<ChartTooltipContent labelFormatter={(_, p) => p?.[0]?.payload?.label}
           rows={(d) => [
@@ -309,6 +352,7 @@ export function HorizontalBarChart({
         </Bar>
       </BarChart>
     </ChartContainer>
+    </div>
   );
 }
 

@@ -70,6 +70,7 @@ export default async function RestSchedule({ searchParams }: { searchParams: Pro
             description="Win rate by days of rest, against an opponent with at least one day off"
             trend={b2b ? `Back-to-backs ${b2b.margin < 0 ? "cost" : "add"} ${Math.abs(b2b.margin).toFixed(1)} points a game` : undefined}
             direction={b2b && b2b.margin >= 0 ? "up" : "down"}
+            legend={[{ label: "Back-to-back", color: "var(--warn)" }, { label: "With rest", color: "var(--panel-dot)" }]}
             note={`${gapSeasons}. Hover a bar for the league win rate.`}
           >
             <RestBucketsChart
@@ -82,14 +83,21 @@ export default async function RestSchedule({ searchParams }: { searchParams: Pro
           </ChartCard>
         </Section>
 
-        <Section className="grid items-start gap-12 lg:grid-cols-[1.25fr_1fr]">
-          <div className="flex flex-col gap-5">
+        {/* Two equal cards side by side */}
+        <Section className="grid items-stretch gap-6 lg:grid-cols-2">
+          <div className="flex flex-col">
             {mineGap && rank ? (
               <ChartCard
+                className="h-full"
                 title={mineGap.gap >= 0
                   ? `${mine.name} win ${Math.round(mineGap.gap)} points less often on the second night. ${ordinal(rank)} biggest drop of ${gaps.length} teams.`
                   : `${mine.name} win ${Math.round(-mineGap.gap)} points more often on the second night. ${ordinal(rank)} biggest drop of ${gaps.length} teams.`}
                 description={`Win rate when rested minus win rate on a back-to-back, in percentage points, ${gapSeasons}`}
+                legend={[
+                  { label: mine.abbr, color: mineGap.gap >= 0 ? "var(--warn)" : "var(--accent)" },
+                  { label: "League average", color: "var(--ink)" },
+                  { label: "No difference", color: "var(--panel-muted)", kind: "dashed" },
+                ]}
                 note="Right of the line: worse on the second night. A single team's gap is a signal, not proof."
               >
                 <HorizontalBarChart
@@ -107,14 +115,14 @@ export default async function RestSchedule({ searchParams }: { searchParams: Pro
               <Heading size="md" title="Back-to-back records will show once the team has played some." />
             )}
           </div>
-          <div className="flex flex-col gap-5">
-            <Heading
-              size="md"
-              title={b2bTotal ? `${mine.name} play ${b2bTotal} back-to-back${b2bTotal === 1 ? "" : "s"} in ${d.seasonLabel}.` : `No back-to-backs for ${mine.name} yet this season.`}
-              caption="Back-to-backs by month. Darker means more. Plan rest days around the dark cells."
-            />
+          <ChartCard
+            className="h-full"
+            title={b2bTotal ? `${mine.name} play ${b2bTotal} back-to-back${b2bTotal === 1 ? "" : "s"} in ${d.seasonLabel}.` : `No back-to-backs for ${mine.name} yet this season.`}
+            description="Back-to-backs by month. Red means more, blue fewer."
+            note="Plan rest days around the red cells."
+          >
             <MonthHeatmap months={months} />
-          </div>
+          </ChartCard>
         </Section>
       </Wrap>
     </div>

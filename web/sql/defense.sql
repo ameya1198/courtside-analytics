@@ -1,4 +1,6 @@
--- Defense. $1 = season (null = latest), $2 = team abbreviation (null = best defense), $3 = opponent abbreviation (null = all opponents).
+-- Defense. $1 = season (null = latest), $2 = team abbreviation (null = best defense), $3 = opponent abbreviation (null = all opponents),
+-- $4 = game type for the shot section: 'Regular Season', 'Playoffs' or null for both.
+-- The shot section covers the chosen season and the one before it, for a bigger sample. Everything else is the chosen season.
 -- Defensive rating = points allowed per 100 opponent possessions (shots + 0.44 x free throws - offensive rebounds + turnovers).
 with s as (
   select coalesce($1::int, (select max(season) from marts.mart_team_ratings where season_type = 'Regular Season')) as season
@@ -65,8 +67,16 @@ league_ff as (
 my_games as (
   select tg.* from tg, pick where tg.abbr = pick.abbr
 ),
+-- The chosen team's games for the shot section: this season and last, filtered by game type.
+shot_games as (
+  select t.game_id, t.opponent_abbreviation as opp
+  from marts.fct_team_game t, s, pick
+  where t.team_abbreviation = pick.abbr
+    and t.season between s.season - 1 and s.season
+    and ($4::text is null or t.season_type = $4::text)
+),
 opponents as (
-  select opp as abbr, count(*)::int as games from my_games group by 1
+  select opp as abbr, count(*)::int as games from shot_games group by 1
 ),
 opp_pick as (
   select (select abbr from opponents where abbr = upper($3::text)) as abbr
@@ -74,16 +84,17 @@ opp_pick as (
 -- Shots taken against the chosen team, optionally by one opponent.
 shots_vs as (
   select sh.* from marts.fct_shots sh
-  join my_games g on g.game_id = sh.game_id and sh.team_abbreviation = g.opp, opp_pick
+  join shot_games g on g.game_id = sh.game_id and sh.team_abbreviation = g.opp, opp_pick
   where opp_pick.abbr is null or sh.team_abbreviation = opp_pick.abbr
 ),
 -- Comparison: the chosen opponent against everyone else, or the whole league when no opponent is picked.
 shots_cmp as (
   select sh.* from marts.fct_shots sh, s, opp_pick, pick
-  where sh.season = s.season and sh.season_type = 'Regular Season'
+  where sh.season between s.season - 1 and s.season
+    and ($4::text is null or sh.season_type = $4::text)
     and (opp_pick.abbr is null
          or (sh.team_abbreviation = opp_pick.abbr
-             and sh.game_id not in (select game_id from my_games)))
+             and sh.game_id not in (select game_id from shot_games)))
 ),
 zone_agg as (
   select 'vs' as side, shot_zone_basic as zone, count(*)::int as fga, sum(is_made::int)::int as fgm from shots_vs group by 2
@@ -152,6 +163,10 @@ select json_build_object(
   'opponents', (select coalesce(json_agg(json_build_array(abbr, games) order by abbr), '[]'::json) from opponents),
   'opponent', (select abbr from opp_pick),
   'shotCount', (select count(*) from shots_vs),
+  -- What the shot section covers: games, seasons and game type
+  'shotGames', (select count(distinct game_id) from shots_vs),
+  'shotSeasons', (select json_build_array(season - 1, season) from s),
+  'shotType', $4::text,
   'zones', (select coalesce(json_agg(json_build_object('zone', zone, 'fga', fga, 'share', share, 'fg', fg) order by share desc), '[]'::json) from zones where side = 'vs'),
   'compareZones', (select coalesce(json_agg(json_build_object('zone', zone, 'fga', fga, 'share', share, 'fg', fg)), '[]'::json) from zones where side = 'cmp'),
   'bins', (select coalesce(json_agg(json_build_array(x, y, a, m)), '[]'::json) from bins),

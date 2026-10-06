@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Empty, Heading, Section, Wrap } from "@/components/blocks";
-import { FactorTable, ZoneRows } from "@/components/charts/html";
+import { ChartCard } from "@/components/chart-card";
+import { FactorTable, Legend, ZoneRows } from "@/components/charts/html";
 import { RollingMarginChart } from "@/components/charts/recharts";
 import { Hero, KpiRow } from "@/components/hero";
 import { ParamSelect } from "@/components/param-select";
@@ -58,6 +59,11 @@ export default async function TeamReport({ searchParams }: { searchParams: Promi
       <Wrap>
         <Section className="flex flex-col gap-6">
           <Heading title={rollingHeadline(t.abbr, series)} caption="Average point margin over the last 10 games, game by game." />
+          <Legend items={[
+            { label: "10-game average margin", color: "var(--accent)", kind: "line" },
+            { label: "Even (0)", color: "var(--panel-muted)", kind: "dashed" },
+            { label: "Best and worst stretch", color: "var(--ink)", kind: "dot" },
+          ]} />
           {series.length >= 2 ? (
             <div className="panel px-3 pb-3 pt-5 md:px-6"><RollingMarginChart data={series} /></div>
           ) : (
@@ -65,23 +71,21 @@ export default async function TeamReport({ searchParams }: { searchParams: Promi
           )}
         </Section>
 
-        <Section className="grid gap-12 lg:grid-cols-[1.2fr_1fr]">
-          <div className="flex flex-col gap-5">
-            {f ? (
-              <>
-                <Heading size="md" title={factorsHeadline(f)} caption="Offense, four factors. Rank out of 30 teams." />
-                <FactorTable
-                  abbr={t.abbr}
-                  team={f}
-                  league={d.leagueFactors}
-                  ranks={{ efg: f.efg_rank, tov: f.tov_rank, orb: f.orb_rank, ftr: f.ftr_rank }}
-                />
-              </>
-            ) : null}
-          </div>
-          <div className="flex flex-col gap-5">
-            <Heading size="md" title={splitsHeadline(s)} caption={`Average margin by situation. ${s.b2b.games} games were back-to-backs.`} />
-            <div className="grid grid-cols-2 gap-3">
+        {/* Two equal cards side by side */}
+        <Section className="grid items-stretch gap-6 lg:grid-cols-2">
+          {f ? (
+            <ChartCard className="h-full" title={factorsHeadline(f)} description="Offense, four factors. Rank out of 30 teams.">
+              <FactorTable
+                abbr={t.abbr}
+                team={f}
+                league={d.leagueFactors}
+                ranks={{ efg: f.efg_rank, tov: f.tov_rank, orb: f.orb_rank, ftr: f.ftr_rank }}
+              />
+            </ChartCard>
+          ) : <div />}
+          <ChartCard className="h-full" title={splitsHeadline(s)} description={`Average margin by situation. ${s.b2b.games} games were back-to-backs.`}>
+            {/* Tiles grow to fill the card, so its bottom lines up with the table next to it */}
+            <div className="grid h-full auto-rows-fr grid-cols-2 gap-3">
               {splitCards.map((c) => (
                 <div key={c.label} className={`flex min-h-[150px] flex-col justify-between gap-1.5 p-4 ${c.style}`}>
                   <span className="label">{c.label}</span>
@@ -90,19 +94,19 @@ export default async function TeamReport({ searchParams }: { searchParams: Promi
                 </div>
               ))}
             </div>
-          </div>
+          </ChartCard>
         </Section>
 
-        <Section className="grid gap-12 lg:grid-cols-[2fr_1fr]">
-          <div className="flex flex-col gap-5">
-            <Heading size="md" title={zonesHeadline(d.zones, d.leagueZones)} caption="Share of shots and make rate by zone, against the league average." />
+        {/* Zone table and clutch, two cards stretched to the same height */}
+        <Section className="grid items-stretch gap-6 lg:grid-cols-[2fr_1fr]">
+          <ChartCard className="h-full" title={zonesHeadline(d.zones, d.leagueZones)} description="Share of shots and make rate by zone, against the league average.">
             {d.zones.length ? <ZoneRows zones={d.zones} compare={d.leagueZones} abbr={t.abbr} compareLabel="League" /> : <Empty>No shot data for this season.</Empty>}
-          </div>
-          <div className="flex flex-col gap-5">
+          </ChartCard>
+          <div className="flex flex-col">
             {d.clutch ? (
-              <>
-                <Heading size="md" title={clutchHeadline(t.abbr, d.clutch)} caption="Last 5 minutes of a game with the score within 5 points." />
-                <div className="grid grid-cols-2 gap-3">
+              <ChartCard className="h-full" title={clutchHeadline(t.abbr, d.clutch)} description="Last 5 minutes of a game with the score within 5 points.">
+                {/* Tiles grow to fill the card, so its bottom lines up with the zone table */}
+                <div className="grid h-full grid-cols-2 grid-rows-[1fr_auto] gap-3">
                   <div className="flex min-h-[140px] flex-col justify-between gap-1 bg-ink p-4 text-white">
                     <span className="label">Clutch record</span>
                     <span className="display text-[52px]">{d.clutch.w}-{d.clutch.l}</span>
@@ -118,12 +122,11 @@ export default async function TeamReport({ searchParams }: { searchParams: Promi
                     <span className="display text-[36px]">{d.clutch.games} of {t.gp ?? t.w + t.l}</span>
                   </div>
                 </div>
-              </>
+              </ChartCard>
             ) : (
-              <>
-                <Heading size="md" title="Clutch record" caption="Last 5 minutes of a game with the score within 5 points." />
+              <ChartCard className="h-full" title="Clutch record" description="Last 5 minutes of a game with the score within 5 points.">
                 <Empty>No clutch games yet this season.</Empty>
-              </>
+              </ChartCard>
             )}
           </div>
         </Section>

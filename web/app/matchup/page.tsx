@@ -100,9 +100,13 @@ export default async function MatchupScout({ searchParams }: { searchParams: Pro
         <Section className="flex flex-col gap-6">
           {d.games.length ? (
             <ChartCard title={h2hTitle} description={`${a.abbr} margin in every ${d.seasonLabel} game against ${b.abbr}, regular season and playoffs`}
-              note={`Right of the line: ${a.abbr} won. Left: ${b.abbr} won.`}>
+              legend={[
+                { label: `${a.abbr} won`, color: "var(--accent)" },
+                { label: `${b.abbr} won`, color: "var(--ink)" },
+              ]}
+              note={`Right of the line: ${a.abbr} won. Left: ${b.abbr} won. The number is the final score.`}>
               <HorizontalBarChart
-                name="Score" icon="scale" refLine={0} categoryWidth={64}
+                name="Score" icon="scale" refLine={0} categoryWidth={72}
                 domain={(() => { const m = Math.max(15, ...d.games.map((g) => Math.abs(g.a_pts - g.b_pts))); return [-m, m] as [number, number]; })()}
                 data={d.games.map((g) => {
                   const m = g.a_pts - g.b_pts;
@@ -122,11 +126,13 @@ export default async function MatchupScout({ searchParams }: { searchParams: Pro
           )}
         </Section>
 
-        <Section className="grid gap-12 lg:grid-cols-2">
-          <div className="flex flex-col gap-5">
+        {/* Two equal cards side by side */}
+        <Section className="grid items-stretch gap-6 lg:grid-cols-2">
+          <div className="flex flex-col">
             {fa && fb ? (
-              <ChartCard title={factorTitle} description="Offense, four factors, regular season"
-                note={`${a.abbr} in colour, ${b.abbr} in black. Bars are scaled per factor. Lower is better for turnovers.`}>
+              <ChartCard className="h-full" title={factorTitle} description="Offense, four factors, regular season"
+                legend={[{ label: a.abbr, color: "var(--accent)" }, { label: b.abbr, color: "var(--ink)" }]}
+                note="Bars are scaled per factor. Lower is better for turnovers.">
                 <PairedHorizontalBarChart
                   a={a.abbr} b={b.abbr}
                   data={FACTOR_META.map((m) => ({
@@ -138,14 +144,13 @@ export default async function MatchupScout({ searchParams }: { searchParams: Pro
               </ChartCard>
             ) : null}
           </div>
-          <div className="flex flex-col gap-5">
-            <Heading
-              size="md"
-              title={zoneGap && zoneGap.diff > 0.01 ? `${b.abbr} takes more ${zoneName(zoneGap.zone).toLowerCase()} than ${a.abbr}. Defend that zone.` : `${a.abbr} and ${b.abbr} shoot from similar spots.`}
-              caption={`${a.abbr} shot share and make rate by zone, with ${b.abbr} for comparison.`}
-            />
+          <ChartCard
+            className="h-full"
+            title={zoneGap && zoneGap.diff > 0.01 ? `${b.abbr} takes more ${zoneName(zoneGap.zone).toLowerCase()} than ${a.abbr}. Defend that zone.` : `${a.abbr} and ${b.abbr} shoot from similar spots.`}
+            description={`${a.abbr} shot share and make rate by zone, with ${b.abbr} for comparison.`}
+          >
             <ZoneRows zones={za} compare={zb} abbr={a.abbr} compareLabel={b.abbr} />
-          </div>
+          </ChartCard>
         </Section>
       </Wrap>
     </div>
