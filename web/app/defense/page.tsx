@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Empty, Heading, Placeholder, Section, Wrap } from "@/components/blocks";
-import { Diverging, FactorTable, ShotHeatmap, ZoneRows } from "@/components/charts/html";
-import { DefRatingChart } from "@/components/charts/recharts";
+import { ChartCard } from "@/components/chart-card";
+import { FactorTable, ShotHeatmap, ZoneRows } from "@/components/charts/html";
+import { DefRatingChart, HorizontalBarChart } from "@/components/charts/recharts";
 import { Hero, KpiRow } from "@/components/hero";
 import { ParamSelect } from "@/components/param-select";
 import { pageData } from "@/lib/db";
@@ -86,25 +87,20 @@ export default async function Defense({ searchParams }: { searchParams: Promise<
             ) : null}
           </div>
           <div className="flex flex-col gap-5">
-            <Heading
-              size="md"
+            <ChartCard
               title={`${ordinal(t.def_rank)} of 30. ${t.def_rank === 1 ? `${(d.ranking[1][1] - t.drtg).toFixed(1)} clear of ${d.ranking[1][0]}.` : `${(t.drtg - d.ranking[0][1]).toFixed(1)} behind ${d.ranking[0][0]}.`}`}
-              caption="Defensive rating against the league average. Bars to the right are better."
-            />
-            <Diverging
-              labelWidth={52}
-              noteWidth={0}
-              leftLabel="← Worse"
-              rightLabel="Better →"
-              max={spread}
-              rows={d.ranking.map(([abbr, r]) => ({
-                key: abbr,
-                label: abbr,
-                value: d.leagueDrtg - r,
-                valueText: r.toFixed(1),
-                tone: abbr === t.abbr ? "accent" : "ink",
-              }))}
-            />
+              description="Defensive rating against the league average"
+              note="Bars to the right are better. The number is points allowed per 100 possessions."
+            >
+              <HorizontalBarChart
+                name="Defensive rating" icon="scale" refLine={0} domain={[-spread, spread]} categoryWidth={44} rowHeight={22}
+                data={d.ranking.map(([abbr, r]) => ({
+                  key: abbr, label: abbr, value: d.leagueDrtg - r, valueText: r.toFixed(1),
+                  fill: abbr === t.abbr ? "var(--accent)" : "var(--ink)",
+                  tips: [{ label: "Against league", value: signed(d.leagueDrtg - r), icon: "trending-up" as const }],
+                }))}
+              />
+            </ChartCard>
           </div>
         </Section>
 

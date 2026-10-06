@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Empty, Heading, Section, Wrap } from "@/components/blocks";
 import { ChartCard } from "@/components/chart-card";
-import { Diverging, MonthHeatmap } from "@/components/charts/html";
-import { RestBucketsChart } from "@/components/charts/recharts";
+import { MonthHeatmap } from "@/components/charts/html";
+import { HorizontalBarChart, RestBucketsChart } from "@/components/charts/recharts";
 import { Hero } from "@/components/hero";
 import { ParamSelect } from "@/components/param-select";
 import { pageData } from "@/lib/db";
@@ -36,6 +36,10 @@ export default async function RestSchedule({ searchParams }: { searchParams: Pro
   const rank = mineGap ? gaps.indexOf(mineGap) + 1 : null;
   const avg = (f: (g: (typeof gaps)[number]) => number) => (gaps.length ? gaps.reduce((s, g) => s + f(g), 0) / gaps.length : 0);
   const leagueGap = avg((g) => g.gap);
+  const winTips = (b2bPct: number, restedPct: number) => [
+    { label: "Back-to-back wins", value: `${Math.round(b2bPct * 100)}%`, icon: "battery-low" as const },
+    { label: "Rested wins", value: `${Math.round(restedPct * 100)}%`, icon: "bed" as const },
+  ];
 
   const months = d.months.filter((m) => m[0] === mine.abbr);
   const b2bTotal = months.reduce((s, m) => s + m[2], 0);
@@ -80,37 +84,28 @@ export default async function RestSchedule({ searchParams }: { searchParams: Pro
 
         <Section className="grid items-start gap-12 lg:grid-cols-[1.25fr_1fr]">
           <div className="flex flex-col gap-5">
-            <Heading
-              size="md"
-              title={
-                mineGap && rank
-                  ? mineGap.gap >= 0
-                    ? `${mine.name} win ${Math.round(mineGap.gap)} points less often on the second night. ${ordinal(rank)} biggest drop of ${gaps.length} teams.`
-                    : `${mine.name} win ${Math.round(-mineGap.gap)} points more often on the second night. ${ordinal(rank)} biggest drop of ${gaps.length} teams.`
-                  : "Back-to-back records will show once the team has played some."
-              }
-              caption={`Win rate when rested minus win rate on a back-to-back, in percentage points, ${gapSeasons}. A single team's gap is a signal, not proof.`}
-            />
-            {mineGap ? (
-              <Diverging
-                leftLabel="← Better on B2B"
-                rightLabel="Worse on B2B →"
-                max={Math.max(10, Math.abs(mineGap.gap), Math.abs(leagueGap))}
-                noteWidth={110}
-                rows={[
-                  {
-                    key: mine.abbr, label: mine.abbr, value: mineGap.gap, valueText: signed(mineGap.gap),
-                    note: `${Math.round(mineGap.b2b_pct! * 100)}% vs ${Math.round(mineGap.rested_pct! * 100)}%`,
-                    tone: mineGap.gap >= 0 ? "warn" : "accent",
-                  },
-                  {
-                    key: "league", label: "LGE", value: leagueGap, valueText: signed(leagueGap),
-                    note: `${Math.round(avg((g) => g.b2b_pct!) * 100)}% vs ${Math.round(avg((g) => g.rested_pct!) * 100)}%`,
-                    tone: "ink",
-                  },
-                ]}
-              />
-            ) : null}
+            {mineGap && rank ? (
+              <ChartCard
+                title={mineGap.gap >= 0
+                  ? `${mine.name} win ${Math.round(mineGap.gap)} points less often on the second night. ${ordinal(rank)} biggest drop of ${gaps.length} teams.`
+                  : `${mine.name} win ${Math.round(-mineGap.gap)} points more often on the second night. ${ordinal(rank)} biggest drop of ${gaps.length} teams.`}
+                description={`Win rate when rested minus win rate on a back-to-back, in percentage points, ${gapSeasons}`}
+                note="Right of the line: worse on the second night. A single team's gap is a signal, not proof."
+              >
+                <HorizontalBarChart
+                  name="Gap" icon="scale" refLine={0}
+                  domain={(() => { const m = Math.max(10, Math.abs(mineGap.gap), Math.abs(leagueGap)); return [-m, m] as [number, number]; })()}
+                  data={[
+                    { key: mine.abbr, label: mine.abbr, value: mineGap.gap, valueText: signed(mineGap.gap), fill: mineGap.gap >= 0 ? "var(--warn)" : "var(--accent)",
+                      tips: winTips(mineGap.b2b_pct!, mineGap.rested_pct!) },
+                    { key: "league", label: "LGE", value: leagueGap, valueText: signed(leagueGap), fill: "var(--ink)",
+                      tips: winTips(avg((g) => g.b2b_pct!), avg((g) => g.rested_pct!)) },
+                  ]}
+                />
+              </ChartCard>
+            ) : (
+              <Heading size="md" title="Back-to-back records will show once the team has played some." />
+            )}
           </div>
           <div className="flex flex-col gap-5">
             <Heading

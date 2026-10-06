@@ -1,6 +1,6 @@
 import { Wrap, Heading, Section } from "@/components/blocks";
 import { ChartCard } from "@/components/chart-card";
-import { BarList } from "@/components/charts/html";
+import { HorizontalBarChart } from "@/components/charts/recharts";
 import { ThreeRateChart } from "@/components/charts/recharts";
 import { ParamSelect } from "@/components/param-select";
 import { pageData } from "@/lib/db";
@@ -105,19 +105,23 @@ export default async function LeaguePulse({ searchParams }: { searchParams: Prom
         {/* Movers */}
         {movers.length ? (
           <Section className="flex flex-col gap-6">
-            <Heading
-              title={`${risers[0].t.name} gained the most: ${signed(risers[0].change)} on last season`}
-              caption={`Change in net rating from last season. ${fallers[0].t.abbr} fell furthest, from ${signed(fallers[0].from)} to ${signed(fallers[0].t.net)}.`}
-            />
-            <div className="grid gap-x-12 gap-y-8 md:grid-cols-2">
-              <div className="flex flex-col">
-                <span className="label border-b-[3px] border-ink pb-2 text-muted">Risers</span>
-                <BarList tone="accent" max={maxMove} rows={risers.map((m) => ({ key: m.t.abbr, label: m.t.abbr, value: m.change, valueText: signed(m.change), note: `${signed(m.from)} to ${signed(m.t.net)}` }))} />
-              </div>
-              <div className="flex flex-col">
-                <span className="label border-b-[3px] border-ink pb-2 text-muted">Fallers</span>
-                <BarList tone="warn" max={maxMove} rows={fallers.map((m) => ({ key: m.t.abbr, label: m.t.abbr, value: m.change, valueText: signed(m.change), note: `${signed(m.from)} to ${signed(m.t.net)}` }))} />
-              </div>
+            <div className="grid gap-6 md:grid-cols-2">
+              {([
+                { list: risers, fill: "var(--accent)", title: `${risers[0].t.name} gained the most: ${signed(risers[0].change)} on last season`, dir: "up" as const, name: "Risers" },
+                { list: fallers, fill: "var(--warn)", title: `${fallers[0].t.name} fell the most: ${signed(fallers[0].change)} on last season`, dir: "down" as const, name: "Fallers" },
+              ]).map((side) => (
+                <ChartCard key={side.name} title={side.title} description={`${side.name}: change in net rating from last season`}
+                  trend={`${side.list[0].t.abbr} went from ${signed(side.list[0].from)} to ${signed(side.list[0].t.net)}`} direction={side.dir}>
+                  {/* Bar length is the size of the change, so risers and fallers share one scale */}
+                  <HorizontalBarChart
+                    name="Change" icon={side.dir === "up" ? "trending-up" : "trending-down"} domain={[0, maxMove]}
+                    data={side.list.map((m) => ({
+                      key: m.t.abbr, label: m.t.abbr, value: Math.abs(m.change), valueText: signed(m.change), fill: side.fill,
+                      tips: [{ label: "Last season", value: signed(m.from), icon: "history" as const }, { label: "This season", value: signed(m.t.net), icon: "calendar" as const }],
+                    }))}
+                  />
+                </ChartCard>
+              ))}
             </div>
           </Section>
         ) : null}

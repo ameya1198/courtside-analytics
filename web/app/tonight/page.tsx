@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { ChartCard } from "@/components/chart-card";
+import { HorizontalBarChart } from "@/components/charts/recharts";
 import { Empty, Heading, Notice, Section, Wrap } from "@/components/blocks";
 import { Hero } from "@/components/hero";
 import { pageData } from "@/lib/db";
@@ -141,16 +143,17 @@ export default async function Tonight({ searchParams }: { searchParams: Promise<
 
         {results.length > 1 ? (
           <Section className="flex flex-col gap-6">
-            <Heading title={`Biggest margin: ${results[0].winner} by ${results[0].m}.`} caption="Winning margin by game. The accent colour means the home team won." />
-            <div className="flex flex-col">
-              {results.map((x) => (
-                <div key={x.g.id} className="row-hover grid grid-cols-[150px_minmax(0,1fr)_56px] items-center gap-3 border-b border-line py-2">
-                  <span className="display text-[22px] font-extrabold tracking-[0.03em]">{x.winner} over {x.loser}</span>
-                  <div className="h-5"><div className="h-5" style={{ width: `${(x.m / Math.max(1, results[0].m)) * 100}%`, background: x.winner === x.g.home ? "var(--accent)" : "var(--ink)" }} /></div>
-                  <span className="text-right font-mono text-[14px] font-medium">+{x.m}</span>
-                </div>
-              ))}
-            </div>
+            <ChartCard title={`Biggest margin: ${results[0].winner} by ${results[0].m}.`} description="Winning margin by game"
+              note="The accent colour means the home team won.">
+              <HorizontalBarChart
+                name="Margin" icon="trophy" categoryWidth={110}
+                data={results.map((x) => ({
+                  key: String(x.g.id), label: `${x.winner} over ${x.loser}`, value: x.m, valueText: `+${x.m}`,
+                  fill: x.winner === x.g.home ? "var(--accent)" : "var(--ink)",
+                  tips: [{ label: "Winner", value: x.winner === x.g.home ? "Home" : "Away", icon: "house" as const }],
+                }))}
+              />
+            </ChartCard>
           </Section>
         ) : null}
       </Wrap>

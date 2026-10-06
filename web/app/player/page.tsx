@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Empty, Heading, Section, Wrap } from "@/components/blocks";
 import { ChartCard } from "@/components/chart-card";
-import { PercentileBars, ShotHeatmap } from "@/components/charts/html";
-import { GameBarsChart, VolumeEfficiencyChart } from "@/components/charts/recharts";
+import { ShotHeatmap } from "@/components/charts/html";
+import { GameBarsChart, HorizontalBarChart, VolumeEfficiencyChart } from "@/components/charts/recharts";
 import { Hero, KpiRow } from "@/components/hero";
 import { ParamSelect } from "@/components/param-select";
 import { RemoteImage } from "@/components/remote-image";
@@ -80,15 +80,22 @@ export default async function PlayerProfile({ searchParams }: { searchParams: Pr
           <div className="flex flex-col gap-5">
             {pc ? (
               <>
-                <Heading size="md" title={percentileHeadline(pc)} caption={`Percentile among ${d.qualifiedCount} players with ${d.minGames}+ games and 20+ minutes. 100 is best.`} />
-                <PercentileBars
-                  rows={[
-                    { label: "Points", value: pc.pts }, { label: "Rebounds", value: pc.reb }, { label: "Assists", value: pc.ast },
-                    { label: "Steals", value: pc.stl }, { label: "Blocks", value: pc.blk }, { label: "True shooting", value: pc.ts },
-                    { label: "3-point %", value: pc.fg3 },
-                  ]}
-                />
-                <span className="text-[13px] text-muted">The black line marks the middle of the pack.</span>
+                <ChartCard
+                  title={percentileHeadline(pc)}
+                  description={`Percentile among ${d.qualifiedCount} players with ${d.minGames}+ games and 20+ minutes`}
+                  note="100 is best. The dashed line marks the middle of the pack."
+                >
+                  <HorizontalBarChart
+                    name="Percentile" icon="medal" domain={[0, 100]} refLine={50} categoryWidth={124}
+                    data={([
+                      ["Points", pc.pts], ["Rebounds", pc.reb], ["Assists", pc.ast], ["Steals", pc.stl],
+                      ["Blocks", pc.blk], ["True shooting", pc.ts], ["3-point %", pc.fg3],
+                    ] as const).map(([label, v]) => ({
+                      key: label, label, value: v, valueText: String(v),
+                      fill: v >= 90 ? "var(--accent)" : "var(--ink)",
+                    }))}
+                  />
+                </ChartCard>
                 {d.clutch ? (
                   <div className="mt-4 grid grid-cols-3 gap-3 border-t-[3px] border-ink pt-4">
                     <div className="flex flex-col"><span className="label">Clutch points</span><span className="display text-[44px]">{d.clutch.pts}</span><span className="font-mono text-[12px] text-muted">{ordinal(d.clutch.pts_rank)} in the league</span></div>
@@ -112,8 +119,9 @@ export default async function PlayerProfile({ searchParams }: { searchParams: Pr
               <GameBarsChart
                 average={p.ppg}
                 data={d.lastGames.map((g) => ({
-                  label: g.opp, pts: g.pts, win: g.win,
-                  tip: `${shortDate(g.game_date)} ${g.home ? "vs" : "at"} ${g.opp} · ${g.win ? "W" : "L"} · ${g.pts} pts, ${g.reb} reb, ${g.ast} ast`,
+                  label: g.opp, pts: g.pts, win: g.win, reb: g.reb, ast: g.ast,
+                  // Tooltip heading; the result and stats show as icon rows below it
+                  tip: `${shortDate(g.game_date)} ${g.home ? "vs" : "at"} ${g.opp}`,
                 }))}
               />
             </ChartCard>

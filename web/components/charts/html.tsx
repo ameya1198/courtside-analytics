@@ -1,82 +1,8 @@
-// Charts drawn with plain HTML and SVG: diverging bars, tables with bars, heatmaps and the court.
+// Charts drawn with plain HTML and SVG: tables with bars, heatmaps and the court. Bar charts live in recharts.tsx.
 import { cn } from "@/lib/utils";
 import { dec3, ordinal, pct } from "@/lib/format";
 import { FACTOR_META, zoneName } from "@/lib/insights";
 import type { Factors, Zone } from "@/lib/types";
-
-type DivRow = { key: string; label: string; value: number; valueText: string; note?: string; tone?: "accent" | "warn" | "ink" };
-
-/** Bars that grow left or right from a centre line. Positive values go right. */
-export function Diverging({
-  rows, max, leftLabel, rightLabel, labelWidth = 64, noteWidth = 120,
-}: { rows: DivRow[]; max: number; leftLabel?: string; rightLabel?: string; labelWidth?: number; noteWidth?: number }) {
-  const grid = { gridTemplateColumns: `${labelWidth}px minmax(0,1fr) 64px ${noteWidth}px` };
-  return (
-    <div className="flex flex-col">
-      {(leftLabel || rightLabel) && (
-        <div className="label grid gap-3 border-b-[3px] border-ink pb-2 text-muted" style={grid}>
-          <span />
-          <span className="flex justify-between"><span>{leftLabel}</span><span>{rightLabel}</span></span>
-          <span />
-          <span />
-        </div>
-      )}
-      {rows.map((r) => {
-        const half = Math.min(50, (Math.abs(r.value) / max) * 50);
-        const color = r.tone === "warn" ? "var(--warn)" : r.tone === "ink" ? "var(--ink)" : "var(--accent)";
-        return (
-          <div key={r.key} className="row-hover grid items-center gap-3 border-b border-line py-2.5" style={grid}>
-            <span className="display text-[22px] font-extrabold tracking-[0.03em]">{r.label}</span>
-            <div className="relative h-[18px]">
-              <div className="absolute inset-y-[-6px] left-1/2 border-l-2 border-ink" />
-              <div
-                className="absolute top-0 h-[18px]"
-                style={{ background: color, width: `${half}%`, left: r.value >= 0 ? "50%" : `${50 - half}%` }}
-              />
-            </div>
-            <span className="text-right font-mono text-[14px] font-medium">{r.valueText}</span>
-            <span className="truncate font-mono text-[12px] text-muted">{r.note}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/** Bars that start at zero. Used for movers where each side has its own list. */
-export function BarList({ rows, max, tone }: { rows: { key: string; label: string; value: number; valueText: string; note?: string }[]; max: number; tone: "accent" | "warn" }) {
-  return (
-    <div className="flex flex-col">
-      {rows.map((r) => (
-        <div key={r.key} className="row-hover grid grid-cols-[56px_minmax(0,1fr)_64px_minmax(90px,130px)] items-center gap-3 border-b border-line py-3">
-          <span className="display text-[24px] font-extrabold tracking-[0.04em]">{r.label}</span>
-          <div className="h-[18px]">
-            <div className="h-[18px]" style={{ width: `${Math.min(100, (Math.abs(r.value) / max) * 100)}%`, background: `var(--${tone})` }} />
-          </div>
-          <span className="text-right font-mono text-[15px] font-medium">{r.valueText}</span>
-          <span className="font-mono text-[12px] text-muted">{r.note}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-export function PercentileBars({ rows }: { rows: { label: string; value: number }[] }) {
-  return (
-    <div className="flex flex-col">
-      {rows.map((r) => (
-        <div key={r.label} className="row-hover grid grid-cols-[120px_minmax(0,1fr)_52px] items-center gap-3 border-b border-line py-2.5">
-          <span className="display text-[22px] font-extrabold tracking-[0.03em]">{r.label}</span>
-          <div className="relative h-[22px] bg-soft">
-            <div className="absolute inset-y-0 left-0" style={{ width: `${r.value}%`, background: r.value >= 90 ? "var(--accent)" : "var(--ink)" }} />
-            <div className="absolute inset-y-[-3px] left-1/2 border-l-2 border-ink" />
-          </div>
-          <span className="display text-right text-[30px]">{r.value}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 /** Four factors for one team against the league, with ranks out of 30. */
 export function FactorTable({ team, league, ranks, abbr, meta = FACTOR_META }: {
@@ -103,30 +29,6 @@ export function FactorTable({ team, league, ranks, abbr, meta = FACTOR_META }: {
           </div>
         );
       })}
-    </div>
-  );
-}
-
-/** Two teams' four factors as paired bars. */
-export function FactorPairs({ a, b, fa, fb }: { a: string; b: string; fa: Factors; fb: Factors }) {
-  const max: Record<keyof Factors, number> = { efg: 0.62, tov: 0.16, orb: 0.34, ftr: 0.28 };
-  return (
-    <div className="flex flex-col gap-6">
-      {FACTOR_META.map((m) => (
-        <div key={m.key} className="flex flex-col gap-2">
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="display text-[24px] font-extrabold tracking-[0.03em]">{m.label}</span>
-            <span className="font-mono text-[12px] text-muted">{m.hint}</span>
-          </div>
-          {[{ t: a, v: fa[m.key], c: "var(--accent)" }, { t: b, v: fb[m.key], c: "var(--ink)" }].map((row) => (
-            <div key={row.t} className="grid grid-cols-[44px_minmax(0,1fr)_56px] items-center gap-3">
-              <span className="font-mono text-[13px] font-medium">{row.t}</span>
-              <div className="relative h-5 bg-soft"><div className="absolute inset-y-0 left-0" style={{ width: `${(row.v / max[m.key]) * 100}%`, background: row.c }} /></div>
-              <span className="display text-right text-[28px]">{dec3(row.v)}</span>
-            </div>
-          ))}
-        </div>
-      ))}
     </div>
   );
 }

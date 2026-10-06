@@ -80,6 +80,13 @@ ${colorConfig
 
 const ChartTooltip = RechartsPrimitive.Tooltip;
 
+/** One tooltip row. `label` and `icon` override the chart config for this row (e.g. a win or loss icon). */
+// The hovered data point. Each chart reads its own fields, so values are left untyped here.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type TooltipDatum = Record<string, any>;
+
+export type TooltipRow = { key: string; value: React.ReactNode; label?: string; icon?: React.ComponentType<{ className?: string }> };
+
 function ChartTooltipContent({
   active,
   payload,
@@ -94,6 +101,7 @@ function ChartTooltipContent({
   color,
   nameKey,
   labelKey,
+  rows,
 }: React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
   React.ComponentProps<"div"> & {
     hideLabel?: boolean;
@@ -101,6 +109,8 @@ function ChartTooltipContent({
     indicator?: "line" | "dot" | "dashed";
     nameKey?: string;
     labelKey?: string;
+    /** Rows to show for the hovered point. `key` looks up the label and icon in the chart config. */
+    rows?: (datum: TooltipDatum) => TooltipRow[];
   }) {
   const { config } = useChart();
 
@@ -119,12 +129,34 @@ function ChartTooltipContent({
   }, [label, labelFormatter, payload, hideLabel, labelClassName, config, labelKey]);
 
   if (!active || !payload?.length) return null;
+
+  // Icon rows (shadcn "tooltip with icons"): one row per metric, icon and label from the chart config.
+  if (rows) {
+    return (
+      <div className={cn("border-line/50 bg-paper text-ink grid min-w-[8rem] items-start gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl", className)}>
+        {tooltipLabel}
+        <div className="grid gap-1.5">
+          {rows(payload[0]?.payload ?? {}).map((row) => {
+            const Icon = (row.icon ?? config[row.key]?.icon) as React.ComponentType<{ className?: string }> | undefined;
+            return (
+              <div key={row.key} className="flex w-full items-center gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5 [&>svg]:text-muted">
+                {Icon ? <Icon aria-hidden /> : null}
+                <span className="text-muted">{row.label ?? config[row.key]?.label ?? row.key}</span>
+                <span className="ml-auto pl-4 font-mono font-medium tabular-nums text-ink">{row.value}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   const nestLabel = payload.length === 1 && indicator !== "dot";
 
   return (
     <div
       className={cn(
-        "grid min-w-[8rem] items-start gap-1.5 bg-[#0B0D12] px-2.5 py-2 font-mono text-xs text-white",
+        "border-line/50 bg-paper text-ink grid min-w-[8rem] items-start gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl",
         className,
       )}
     >
@@ -138,7 +170,7 @@ function ChartTooltipContent({
             <div
               key={item.dataKey ?? index}
               className={cn(
-                "flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5",
+                "flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5 [&>svg]:text-muted",
                 indicator === "dot" && "items-center",
               )}
             >
@@ -164,10 +196,10 @@ function ChartTooltipContent({
                   <div className={cn("flex flex-1 justify-between leading-none", nestLabel ? "items-end" : "items-center")}>
                     <div className="grid gap-1.5">
                       {nestLabel ? tooltipLabel : null}
-                      <span className="text-[#A7AEBB]">{itemConfig?.label || item.name}</span>
+                      <span className="text-muted">{itemConfig?.label || item.name}</span>
                     </div>
                     {item.value !== undefined && (
-                      <span className="font-mono font-medium tabular-nums">
+                      <span className="font-mono font-medium tabular-nums text-ink">
                         {typeof item.value === "number" ? item.value.toLocaleString() : item.value}
                       </span>
                     )}

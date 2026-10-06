@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Empty, Heading, Section, Wrap } from "@/components/blocks";
-import { Diverging, FactorPairs, ZoneRows } from "@/components/charts/html";
+import { ChartCard } from "@/components/chart-card";
+import { ZoneRows } from "@/components/charts/html";
+import { HorizontalBarChart, PairedHorizontalBarChart } from "@/components/charts/recharts";
 import { ParamSelect } from "@/components/param-select";
 import { pageData } from "@/lib/db";
 import { dec3, one, ordinal, parseSeason, seasonOptions, shortDate, signed } from "@/lib/format";
@@ -96,33 +98,44 @@ export default async function MatchupScout({ searchParams }: { searchParams: Pro
 
       <Wrap>
         <Section className="flex flex-col gap-6">
-          <Heading title={h2hTitle} caption={`${a.abbr} margin in every ${d.seasonLabel} game against ${b.abbr}, regular season and playoffs.`} />
           {d.games.length ? (
-            <Diverging
-              labelWidth={110}
-              noteWidth={150}
-              leftLabel={`${b.abbr} won by`}
-              rightLabel={`${a.abbr} won by`}
-              max={Math.max(15, ...d.games.map((g) => Math.abs(g.a_pts - g.b_pts)))}
-              rows={d.games.map((g) => {
-                const m = g.a_pts - g.b_pts;
-                return {
-                  key: g.game_date, label: shortDate(g.game_date), value: m, valueText: `${g.a_pts}-${g.b_pts}`,
-                  note: `${g.phase === "Playoffs" ? "Playoffs" : "Regular"} · ${g.a_home ? "home" : "away"}`,
-                  tone: m >= 0 ? "accent" : "ink",
-                };
-              })}
-            />
-          ) : null}
+            <ChartCard title={h2hTitle} description={`${a.abbr} margin in every ${d.seasonLabel} game against ${b.abbr}, regular season and playoffs`}
+              note={`Right of the line: ${a.abbr} won. Left: ${b.abbr} won.`}>
+              <HorizontalBarChart
+                name="Score" icon="scale" refLine={0} categoryWidth={64}
+                domain={(() => { const m = Math.max(15, ...d.games.map((g) => Math.abs(g.a_pts - g.b_pts))); return [-m, m] as [number, number]; })()}
+                data={d.games.map((g) => {
+                  const m = g.a_pts - g.b_pts;
+                  return {
+                    key: `${g.game_date}-${g.phase}`, label: shortDate(g.game_date), value: m, valueText: `${g.a_pts}-${g.b_pts}`,
+                    fill: m >= 0 ? "var(--accent)" : "var(--ink)",
+                    tips: [
+                      { label: "Game", value: g.phase === "Playoffs" ? "Playoffs" : "Regular season", icon: "calendar" as const },
+                      { label: `${a.abbr} played`, value: g.a_home ? "Home" : "Away", icon: "house" as const },
+                    ],
+                  };
+                })}
+              />
+            </ChartCard>
+          ) : (
+            <Heading title={h2hTitle} />
+          )}
         </Section>
 
         <Section className="grid gap-12 lg:grid-cols-2">
           <div className="flex flex-col gap-5">
             {fa && fb ? (
-              <>
-                <Heading size="md" title={factorTitle} caption="Offense, four factors, regular season." />
-                <FactorPairs a={a.abbr} b={b.abbr} fa={fa} fb={fb} />
-              </>
+              <ChartCard title={factorTitle} description="Offense, four factors, regular season"
+                note={`${a.abbr} in colour, ${b.abbr} in black. Bars are scaled per factor. Lower is better for turnovers.`}>
+                <PairedHorizontalBarChart
+                  a={a.abbr} b={b.abbr}
+                  data={FACTOR_META.map((m) => ({
+                    key: m.key, label: m.label.replace(/ \(.*\)$/, ""), a: fa[m.key], b: fb[m.key], aText: dec3(fa[m.key]), bText: dec3(fb[m.key]),
+                    // Typical league highs, so each factor's bars use a sensible length
+                    scale: { efg: 0.62, tov: 0.16, orb: 0.34, ftr: 0.28 }[m.key],
+                  }))}
+                />
+              </ChartCard>
             ) : null}
           </div>
           <div className="flex flex-col gap-5">
