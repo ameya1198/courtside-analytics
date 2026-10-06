@@ -147,6 +147,15 @@ def get_schedule(start_year: int) -> pd.DataFrame:
 # LeagueDashPtDefend categories we load: all shots, threes, and shots at the rim.
 DEFENSE_CATEGORIES = ["Overall", "3 Pointers", "Less Than 6Ft"]
 
+# Only "Overall" uses the D_* column names. The other categories name the same numbers differently,
+# so we rename them to the Overall names before stacking.
+DEFENDED_RENAMES = {
+    "3 Pointers": {"FG3M": "D_FGM", "FG3A": "D_FGA", "FG3_PCT": "D_FG_PCT", "NS_FG3_PCT": "NORMAL_FG_PCT",
+                   "PLUSMINUS": "PCT_PLUSMINUS"},
+    "Less Than 6Ft": {"FGM_LT_06": "D_FGM", "FGA_LT_06": "D_FGA", "LT_06_PCT": "D_FG_PCT",
+                      "NS_LT_06_PCT": "NORMAL_FG_PCT", "PLUSMINUS": "PCT_PLUSMINUS"},
+}
+
 
 def get_player_on_off(team_id: int, start_year: int, season_type: str) -> pd.DataFrame:
     """Team ratings with each player on and off the court, for one team.
@@ -188,7 +197,14 @@ def get_player_defended_shots(start_year: int, season_type: str, category: str) 
         per_mode_simple="Totals",
         timeout=60,
     ).get_data_frames()[0])
-    return df.assign(CATEGORY=category) if not df.empty else df
+    return label_defended(df, category)
+
+
+def label_defended(df: pd.DataFrame, category: str) -> pd.DataFrame:
+    """Give every category the same column names and add a CATEGORY column."""
+    if df.empty:
+        return df
+    return df.rename(columns=DEFENDED_RENAMES.get(category, {})).assign(CATEGORY=category)
 
 
 def get_player_hustle(start_year: int, season_type: str) -> pd.DataFrame:

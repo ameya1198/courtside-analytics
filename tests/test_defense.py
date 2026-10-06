@@ -62,3 +62,19 @@ def test_load_combined_skips_when_the_api_has_nothing(monkeypatch):
     monkeypatch.setattr(load, "replace_rows", lambda *a: (_ for _ in ()).throw(AssertionError("should not write")))
     assert load.load_combined(None, "player_on_off", [pd.DataFrame()], ON_OFF_COLUMNS,
                               ["team_id", "player_id", "court_status"], 2026, "Playoffs") == 0
+
+
+def test_defended_categories_share_one_set_of_columns():
+    # "3 Pointers" and "Less Than 6Ft" name their numbers differently from "Overall"
+    base = {"CLOSE_DEF_PERSON_ID": 1, "PLAYER_NAME": "A", "PLAYER_LAST_TEAM_ID": 2,
+            "PLAYER_LAST_TEAM_ABBREVIATION": "OKC", "PLAYER_POSITION": "C", "GP": 70, "FREQ": 0.4}
+    threes = nba_client.label_defended(pd.DataFrame([base | {"FG3M": 50, "FG3A": 150, "FG3_PCT": 0.333,
+                                                             "NS_FG3_PCT": 0.36, "PLUSMINUS": -0.027}]), "3 Pointers")
+    rim = nba_client.label_defended(pd.DataFrame([base | {"FGM_LT_06": 200, "FGA_LT_06": 400, "LT_06_PCT": 0.5,
+                                                          "NS_LT_06_PCT": 0.63, "PLUSMINUS": -0.13}]), "Less Than 6Ft")
+    df = prepare_defense(pd.concat([threes, rim], ignore_index=True), DEFENDED_COLUMNS, 2025, "Regular Season")
+    assert df["d_fga"].tolist() == [150, 400]
+    assert df["normal_fg_pct"].tolist() == [0.36, 0.63]
+    assert df["pct_plusminus"].tolist() == [-0.027, -0.13]
+    assert df["category"].tolist() == ["3 Pointers", "Less Than 6Ft"]
+
