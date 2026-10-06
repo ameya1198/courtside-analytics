@@ -203,3 +203,14 @@ models:
       - name: team_id
         data_tests:
           - not_null
+
+  - name: stg_bbref__player_advanced
+    description: Win Shares, Box Plus/Minus and VORP per player x team x regular season, from Basketball-Reference.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [bbref_id, bbref_team, season]
+    columns:
+      - name: bbref_id
+        data_tests:
+          - not_null

@@ -1,6 +1,8 @@
--- One row per player per regular season: production next to pay and age.
--- Production = NBA fantasy points per game (points, rebounds, assists, steals, blocks, minus turnovers).
--- It is a simple, well-known single number, good enough to compare value across players.
+-- One row per player per regular season: what a player produced next to what he was paid.
+-- Value = salary per Win Share (Basketball-Reference). Win Shares credit a player with a share of his team's
+-- wins, from offense (ows) and from defense (dws), so the ranking counts both ends of the floor.
+-- VORP (value over a replacement-level player) is the second measure. Both are season totals across teams.
+-- Fantasy points stay as a simple box-score production number for older pages; the value page no longer uses them.
 -- Qualified = played at least 48% of the most games any team played, and 20+ minutes a game.
 with games as (
     select *
@@ -39,6 +41,25 @@ production as (
     group by player_id, season
 ),
 
+advanced as (
+    -- Sum a traded player's rows across his teams. Per-48 and BPM are rebuilt from the totals.
+    select
+        player_id,
+        season,
+        sum(minutes) as adv_minutes,
+        sum(ows) as ows,
+        sum(dws) as dws,
+        sum(ws) as ws,
+        round(48 * sum(ws) / nullif(sum(minutes), 0), 3) as ws_per_48,
+        sum(vorp) as vorp,
+        round(sum(bpm * minutes) / nullif(sum(minutes), 0), 1) as bpm,
+        round(sum(obpm * minutes) / nullif(sum(minutes), 0), 1) as obpm,
+        round(sum(dbpm * minutes) / nullif(sum(minutes), 0), 1) as dbpm
+    from {{ ref('stg_bbref__player_advanced') }}
+    where player_id is not null
+    group by player_id, season
+),
+
 bio as (
     select distinct on (player_id, season) player_id, season, age, height_inches, country, draft_year, draft_number
     from {{ ref('stg_nba__player_bio') }}
@@ -55,11 +76,25 @@ select
     salaries.salary,
     salaries.source as salary_source,
     production.games >= ceil(0.48 * team_games.max_games) and production.mpg >= 20 as is_qualified,
-    -- Dollars paid per fantasy point produced. Lower means better value.
-    round(salaries.salary / nullif(production.fantasy_pts_total, 0)) as dollars_per_fantasy_pt
+    -- Dollars paid per fantasy point produced. Lower means better value. Kept for older pages.
+    round(salaries.salary / nullif(production.fantasy_pts_total, 0)) as dollars_per_fantasy_pt,
+    advanced.adv_minutes,
+    advanced.ows,
+    advanced.dws,
+    advanced.ws,
+    advanced.ws_per_48,
+    advanced.vorp,
+    advanced.bpm,
+    advanced.obpm,
+    advanced.dbpm,
+    -- Dollars paid per Win Share. Lower is better value. Empty when he produced no wins (0 or fewer).
+    case when advanced.ws > 0 then round(salaries.salary / advanced.ws) end as dollars_per_win_share
 from production
 inner join team_games
     on production.season = team_games.season
+left join advanced
+    on production.player_id = advanced.player_id
+    and production.season = advanced.season
 left join bio
     on production.player_id = bio.player_id
     and production.season = bio.season

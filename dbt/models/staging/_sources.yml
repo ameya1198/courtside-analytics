@@ -40,6 +40,10 @@ sources:
         description: Opponent shooting when each player was the closest defender, by shot category (LeagueDashPtDefend).
       - name: player_hustle
         description: Player hustle totals per season (LeagueHustleStatsPlayer).
+      - name: player_advanced
+        description: Win Shares, Box Plus/Minus and VORP from Basketball-Reference team pages, per player x team x season.
+        config:
+          freshness: null   # refreshed with salaries, a few times a year
       - name: team_defense_misc
         description: Points each team allows per game off turnovers, second chances, fast breaks and in the paint.
       - name: schedule

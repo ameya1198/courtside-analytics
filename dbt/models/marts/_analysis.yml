@@ -195,8 +195,9 @@ models:
 
   - name: mart_player_value
     description: >
-      One row per player per regular season: production (NBA fantasy points per game), age and salary.
-      dollars_per_fantasy_pt is salary divided by total fantasy points; lower is better value.
+      One row per player per regular season: salary next to Win Shares (offensive and defensive), VORP, BPM,
+      age and fantasy points. dollars_per_win_share is salary divided by Win Shares (lower is better value,
+      empty when he produced no wins). Win Shares count defense, so the value ranking includes it.
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
