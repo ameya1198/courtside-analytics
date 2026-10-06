@@ -1,7 +1,7 @@
 // Headlines are written from the data on every request, so they change as games are played.
 // Each one is a single sentence that points at something a decision maker can act on.
 import { ordinal, pct, signed } from "./format";
-import type { Clutch, Factors, PlayerData, RestData, TeamData, TeamGame, Zone } from "./types";
+import type { Clutch, DefenseData, Factors, PlayerData, RestData, TeamData, TeamGame, Zone } from "./types";
 
 const ZONE_NAMES: Record<string, string> = {
   "Above the Break 3": "Above-the-break threes",
@@ -142,3 +142,64 @@ export function clutchHeadline(abbr: string, c: Clutch) {
 }
 
 export const money = (n: number) => (n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${Math.round(n / 1e3)}K`);
+
+// ---------- Defense ----------
+
+export const DEF_FACTOR_META: { key: keyof DefenseData["leagueFactors"]; label: string; short: string; hint: string }[] = [
+  { key: "opp_efg", label: "Opponent shooting", short: "contesting shots", hint: "Opponent eFG%. Lower is better" },
+  { key: "forced_tov", label: "Turnovers forced", short: "forcing turnovers", hint: "Opponent TOV%. Higher is better" },
+  { key: "dreb", label: "Defensive rebounding", short: "finishing possessions", hint: "Share of opponent misses kept" },
+  { key: "opp_ftr", label: "Fouling", short: "staying out of foul trouble", hint: "Opponent FT rate. Lower is better" },
+];
+
+export function defFactorsHeadline(f: NonNullable<DefenseData["factors"]>) {
+  const ranks = DEF_FACTOR_META.map((m) => ({ m, rank: f[`${m.key}_rank` as keyof typeof f] as number }));
+  const worst = ranks.reduce((a, b) => (b.rank > a.rank ? b : a));
+  const best = ranks.reduce((a, b) => (b.rank < a.rank ? b : a));
+  if (worst.rank >= 21) return `${cap(best.m.short)} is the strength (${ordinal(best.rank)}). ${cap(worst.m.short)} is the leak: ${ordinal(worst.rank)} of 30.`;
+  if (best.rank <= 5) return `Built on ${best.m.short}: ${ordinal(best.rank)} of 30. The weakest area is ${worst.m.short} (${ordinal(worst.rank)}).`;
+  return `No standout strength. ${cap(worst.m.short)} is the weakest area at ${ordinal(worst.rank)} of 30.`;
+}
+
+/** Rolling defensive rating over the last n games. */
+export function defRolling(games: DefenseData["games"], n = 10) {
+  const out: { game: number; value: number; date: string }[] = [];
+  for (let i = n - 1; i < games.length; i++) {
+    const v = games.slice(i - n + 1, i + 1).reduce((a, g) => a + g[2], 0) / n;
+    out.push({ game: i + 1, value: Math.round(v * 10) / 10, date: games[i][0] });
+  }
+  return out;
+}
+
+export function defTrendHeadline(abbr: string, series: ReturnType<typeof defRolling>, league: number) {
+  if (series.length < 5) return "Not enough games yet for a 10-game trend. Check back after game 15.";
+  const last = series[series.length - 1];
+  const best = series.reduce((a, b) => (b.value < a.value ? b : a));
+  const gap = league - last.value;
+  if (gap >= 0)
+    return `${abbr} allow ${last.value} per 100 over the last 10, ${gap.toFixed(1)} better than the league. Best stretch: ${best.value} by game ${best.game}.`;
+  return `${abbr} allow ${last.value} per 100 over the last 10, ${(-gap).toFixed(1)} worse than the league. Tighten up before it costs games.`;
+}
+
+/** The zone where opponents beat or miss their usual make rate by the most, weighted toward common shots. */
+export function defZonesHeadline(zones: Zone[], compare: Zone[], who: string, cmpLabel: string) {
+  const cmp = new Map(compare.map((z) => [z.zone, z]));
+  const diffs = zones
+    .filter((z) => z.share >= 0.05 && cmp.has(z.zone) && z.zone !== "Backcourt")
+    .map((z) => ({ z, diff: z.fg - cmp.get(z.zone)!.fg }));
+  if (!diffs.length) return "Shot locations will show here once shots are loaded.";
+  const leak = diffs.reduce((a, b) => (b.diff > a.diff ? b : a));
+  const wall = diffs.reduce((a, b) => (b.diff < a.diff ? b : a));
+  const name = (z: Zone) => zoneName(z.zone).toLowerCase();
+  if (leak.diff >= 0.02)
+    return `${who} hit ${name(leak.z)} at ${pct(leak.z.fg)}, ${(leak.diff * 100).toFixed(1)} points above ${cmpLabel}. Close that gap first.`;
+  return `${who} make ${name(wall.z)} at ${pct(wall.z.fg)}, ${(-wall.diff * 100).toFixed(1)} points below ${cmpLabel}. Keep forcing those.`;
+}
+
+export function defPlayersHeadline(players: DefenseData["players"]) {
+  if (!players.length) return "No rotation players yet this season.";
+  const by = (k: "stl36" | "blk36" | "dreb36") => players.reduce((a, b) => (b[k] > a[k] ? b : a));
+  const stl = by("stl36"), blk = by("blk36");
+  if (stl.player_id === blk.player_id) return `${stl.name} leads in steals and blocks per 36 minutes.`;
+  return `${stl.name} creates turnovers (${stl.stl36.toFixed(1)} steals per 36). ${blk.name} protects the rim (${blk.blk36.toFixed(1)} blocks).`;
+}

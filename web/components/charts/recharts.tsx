@@ -55,6 +55,31 @@ export function RollingMarginChart({ data }: { data: { game: number; value: numb
   );
 }
 
+/** Rolling defensive rating. Lower is better, so the league line is the bar to stay under. */
+export function DefRatingChart({ data, league }: { data: { game: number; value: number; date: string }[]; league: number }) {
+  const config = { value: { label: "10-game defensive rating", color: "var(--accent)" } } satisfies ChartConfig;
+  const best = data.reduce((a, b) => (b.value < a.value ? b : a), data[0]);
+  const worst = data.reduce((a, b) => (b.value > a.value ? b : a), data[0]);
+  const lo = Math.floor(Math.min(best.value, league) - 3), hi = Math.ceil(Math.max(worst.value, league) + 3);
+  return (
+    <ChartContainer config={config} className="aspect-auto h-[340px] w-full">
+      <LineChart data={data} margin={{ top: 28, right: 24, left: 0, bottom: 4 }}>
+        <CartesianGrid vertical={false} stroke="var(--panel-grid)" strokeDasharray="3 3" strokeOpacity={0.7} />
+        <XAxis dataKey="game" {...axis} tickFormatter={(g) => `G${g}`} minTickGap={24} />
+        <YAxis {...axis} width={44} domain={[lo, hi]} />
+        <ReferenceLine y={league} stroke="var(--panel-muted)" strokeDasharray="4 4"
+          label={{ value: `LEAGUE ${league}`, position: "insideTopRight", fill: "var(--panel-muted)", fontFamily: "var(--font-mono)", fontSize: 11 }} />
+        <ChartTooltip content={<ChartTooltipContent labelFormatter={(_, p) => `Game ${p?.[0]?.payload?.game} · ${p?.[0]?.payload?.date}`} />} />
+        <Line dataKey="value" type="monotone" stroke="var(--color-value)" strokeWidth={4} dot={false} isAnimationActive={false} />
+        <ReferenceDot x={best.game} y={best.value} r={7} fill="var(--panel-ink)" stroke="none"
+          label={{ value: `BEST ${best.value} · G${best.game}`, position: "bottom", fill: "var(--panel-ink)", fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 20 }} />
+        <ReferenceDot x={worst.game} y={worst.value} r={7} fill="var(--warn)" stroke="none"
+          label={{ value: `WORST ${worst.value} · G${worst.game}`, position: "top", fill: "var(--panel-ink)", fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 20 }} />
+      </LineChart>
+    </ChartContainer>
+  );
+}
+
 /** Points in each recent game. Wins in the accent colour, losses in the warning colour. Dashed line = season average. */
 export function GameBarsChart({ data, average }: { data: { label: string; pts: number; win: boolean; tip: string }[]; average: number }) {
   const config = { pts: { label: "Points", color: "var(--accent)" } } satisfies ChartConfig;

@@ -4,7 +4,7 @@ import path from "node:path";
 import { unstable_cache } from "next/cache";
 import postgres from "postgres";
 
-export type PageQuery = "league" | "team" | "player" | "value" | "rest" | "matchup" | "tonight";
+export type PageQuery = "league" | "team" | "defense" | "player" | "value" | "rest" | "matchup" | "tonight";
 
 const root = process.cwd();
 const url = process.env.DATABASE_URL;

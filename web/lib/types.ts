@@ -98,3 +98,29 @@ export type TonightData = {
   seasonType: string | null; ratingSeason: number | null;
   games: TonightGame[];
 };
+
+export type DefFactors = { opp_efg: number; forced_tov: number; dreb: number; opp_ftr: number };
+
+export type DefensePlayer = {
+  player_id: number; name: string; gp: number; mpg: number;
+  stl36: number; blk36: number; dreb36: number; pf36: number; pm: number;
+};
+
+export type DefenseData = {
+  season: number; seasonLabel: string; seasons: number[];
+  team: { team_id: number; abbr: string; name: string; gp: number; drtg: number; def_rank: number; opp_ppg: number; prev_drtg: number | null; prev_rank: number | null } | null;
+  leagueDrtg: number;
+  ranking: [string, number][];
+  factors: (DefFactors & { abbr: string; opp_efg_rank: number; forced_tov_rank: number; dreb_rank: number; opp_ftr_rank: number }) | null;
+  leagueFactors: DefFactors;
+  // [date, opponent, defensive rating that game, won]
+  games: [string, string, number, boolean][];
+  // [opponent, games played against them]
+  opponents: [string, number][];
+  opponent: string | null;
+  shotCount: number;
+  zones: Zone[];
+  compareZones: Zone[];
+  bins: [number, number, number, number][];
+  players: DefensePlayer[];
+};

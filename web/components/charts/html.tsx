@@ -79,13 +79,16 @@ export function PercentileBars({ rows }: { rows: { label: string; value: number 
 }
 
 /** Four factors for one team against the league, with ranks out of 30. */
-export function FactorTable({ team, league, ranks, abbr }: { team: Factors; league: Factors; ranks: Record<keyof Factors, number>; abbr: string }) {
+export function FactorTable({ team, league, ranks, abbr, meta = FACTOR_META }: {
+  team: Record<string, number | string>; league: Record<string, number>; ranks: Record<string, number>; abbr: string;
+  meta?: { key: string; label: string; hint: string }[];
+}) {
   return (
     <div className="flex flex-col">
       <div className="label grid grid-cols-[minmax(130px,1.2fr)_76px_76px_64px] gap-3 border-b-[3px] border-ink pb-2 text-muted">
         <span>Factor</span><span className="text-right">{abbr}</span><span className="text-right">League</span><span className="text-right">Rank</span>
       </div>
-      {FACTOR_META.map((m) => {
+      {meta.map((m) => {
         const rank = ranks[m.key];
         const tone = rank <= 5 ? "var(--accent)" : rank >= 21 ? "var(--warn)" : "var(--ink)";
         return (
@@ -94,7 +97,7 @@ export function FactorTable({ team, league, ranks, abbr }: { team: Factors; leag
               <span className="display text-[24px] font-extrabold tracking-[0.03em]">{m.label}</span>
               <span className="text-[13px] text-muted">{m.hint}</span>
             </div>
-            <span className="display text-right text-[34px]" style={{ color: tone }}>{dec3(team[m.key])}</span>
+            <span className="display text-right text-[34px]" style={{ color: tone }}>{dec3(Number(team[m.key]))}</span>
             <span className="text-right font-mono text-[15px] text-muted">{dec3(league[m.key])}</span>
             <span className="text-right font-mono text-[15px] font-medium">{ordinal(rank)}</span>
           </div>
