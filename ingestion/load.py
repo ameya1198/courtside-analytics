@@ -10,6 +10,8 @@ Usage:
     python -m ingestion.load --extras               # clutch, player bio and schedule for this season (nightly)
     python -m ingestion.load --extras-backfill      # clutch and bio for every season since BACKFILL_START_SEASON
     python -m ingestion.load --salaries             # salaries from Basketball-Reference since SALARY_START_SEASON
+    python -m ingestion.load --defense              # player and team defense for this season (nightly)
+    python -m ingestion.load --defense-backfill     # the same since DEFENSE_START_SEASON (default 2024)
 
 Every load is safe to re-run. It deletes that season's rows first, then inserts
 fresh ones, all in one transaction, so you never end up with duplicates.
@@ -80,13 +82,37 @@ SCHEDULE_COLUMNS = {
     "arena_name": "arenaName",
 }
 
+# Defense (phase 2). Some endpoints name the player and team columns differently, so we rename first.
+DEFENSE_RENAMES = {
+    "vs_player_id": "player_id", "vs_player_name": "player_name",           # on/off
+    "close_def_person_id": "player_id",                                      # defended shots
+    "player_last_team_id": "team_id", "player_last_team_abbreviation": "team_abbreviation",
+}
+ON_OFF_COLUMNS = [
+    "team_id", "team_abbreviation", "player_id", "player_name", "court_status",
+    "gp", "min", "plus_minus", "off_rating", "def_rating", "net_rating",
+]
+DEFENDED_COLUMNS = [
+    "player_id", "player_name", "team_id", "team_abbreviation", "player_position", "gp", "freq",
+    "d_fgm", "d_fga", "d_fg_pct", "normal_fg_pct", "pct_plusminus", "category",
+]
+HUSTLE_COLUMNS = [
+    "player_id", "player_name", "team_id", "team_abbreviation", "g", "min", "contested_shots",
+    "contested_shots_2pt", "contested_shots_3pt", "deflections", "charges_drawn",
+    "loose_balls_recovered", "def_loose_balls_recovered", "def_boxouts",
+]
+TEAM_MISC_COLUMNS = [
+    "team_id", "team_name", "gp", "opp_pts_off_tov", "opp_pts_2nd_chance", "opp_pts_fb", "opp_pts_paint",
+]
+DEFENSE_TABLES = ["player_on_off", "player_defended_shots", "player_hustle", "team_defense_misc"]
+
 # These columns are whole numbers in the database. Pandas reads them as decimals,
 # so we convert them before inserting.
 WHOLE_NUMBER_COLUMNS = [
     "player_id", "team_id", "fgm", "fga", "fg3m", "fg3a", "ftm", "fta", "oreb", "dreb",
     "reb", "ast", "stl", "blk", "tov", "pf", "pts", "video_available",
     "game_event_id", "period", "minutes_remaining", "seconds_remaining", "shot_distance",
-    "loc_x", "loc_y", "shot_made_flag", "gp", "w", "l", "player_height_inches", "player_weight",
+    "loc_x", "loc_y", "shot_made_flag", "gp", "w", "l", "player_height_inches", "player_weight", "g",
 ]
 
 # Which table, which columns, and which API level ("P" player, "T" team) per source.
@@ -319,6 +345,70 @@ def load_extras(engine, season: int) -> None:
     load_schedule(engine, season)
 
 
+def prepare_defense(raw: pd.DataFrame, columns: list, season: int, season_type: str) -> pd.DataFrame:
+    """Like prepare_rows, but first renames the endpoint's player and team columns to ours."""
+    df = raw.copy()
+    df.columns = [name.lower() for name in df.columns]
+    df = df.rename(columns=DEFENSE_RENAMES)
+    return prepare_rows(df, columns, season, season_type)
+
+
+def load_combined(engine, table: str, frames, columns: list, key: list, season: int, season_type: str) -> int:
+    """Load a table built from several API calls (one per team, or one per shot category)."""
+    run_id = start_run(engine, f"{table}:{season_type}", season)
+    try:
+        frames = [f for f in frames if not f.empty]
+        if not frames:
+            finish_run(engine, run_id, "success", rows=0)
+            print(f"{table} {season} {season_type}: no rows from the API, skipped")
+            return 0
+        df = prepare_defense(pd.concat(frames, ignore_index=True), columns, season, season_type)
+        df = df.drop_duplicates(subset=key)  # the natural key, so a re-sent row is not stored twice
+        replace_rows(engine, table, df, "season = :s and season_type = :t", {"s": season, "t": season_type})
+        finish_run(engine, run_id, "success", rows=len(df))
+        print(f"{table} {season} {season_type}: loaded {len(df)} rows")
+        return len(df)
+    except Exception as error:
+        finish_run(engine, run_id, "failed", error=str(error)[:500])
+        raise
+
+
+def team_on_off_frames(season: int, season_type: str):
+    """One on/off call per team, with a short pause so we do not hammer the NBA servers."""
+    for team_id in nba_client.get_teams()["id"]:
+        yield nba_client.get_player_on_off(int(team_id), season, season_type)
+        time.sleep(1)
+
+
+def load_defense(engine, season: int) -> None:
+    """On/off, defended shots, hustle and team misc for one season, regular season and playoffs."""
+    for season_type in SEASON_TYPES:
+        load_combined(engine, "player_on_off", list(team_on_off_frames(season, season_type)), ON_OFF_COLUMNS,
+                      ["team_id", "player_id", "court_status"], season, season_type)
+        defended = []
+        for category in nba_client.DEFENSE_CATEGORIES:
+            defended.append(nba_client.get_player_defended_shots(season, season_type, category))
+            time.sleep(2)
+        load_combined(engine, "player_defended_shots", defended, DEFENDED_COLUMNS,
+                      ["player_id", "category"], season, season_type)
+        load_season_table(engine, "player_hustle", nba_client.get_player_hustle, HUSTLE_COLUMNS, season, season_type)
+        time.sleep(2)
+        load_season_table(engine, "team_defense_misc", nba_client.get_team_defense_misc, TEAM_MISC_COLUMNS,
+                          season, season_type)
+        time.sleep(2)
+
+
+def print_defense_counts(engine) -> None:
+    """Row counts per defense table, split by season, after a load."""
+    with engine.connect() as conn:
+        for table in DEFENSE_TABLES:
+            rows = conn.execute(text(f"select season, season_type, count(*) from raw.{table} "
+                                     "group by 1, 2 order by 1, 2")).all()
+            total = sum(r[2] for r in rows)
+            detail = ", ".join(f"{r[0]} {r[1]}: {r[2]}" for r in rows) or "empty"
+            print(f"raw.{table}: {total} rows ({detail})")
+
+
 def load_salaries(engine, first_season: int, last_season: int) -> None:
     """Past and current seasons from team pages, then this and future seasons from the contracts page."""
     index = salaries.build_name_index(nba_client.get_players().to_dict("records"))
@@ -410,6 +500,8 @@ def main() -> None:
     parser.add_argument("--extras", action="store_true", help="clutch, bio and schedule for this season")
     parser.add_argument("--extras-backfill", action="store_true", help="clutch and bio for all seasons")
     parser.add_argument("--salaries", action="store_true", help="salaries from Basketball-Reference")
+    parser.add_argument("--defense", action="store_true", help="player and team defense for this season")
+    parser.add_argument("--defense-backfill", action="store_true", help="the defense tables since DEFENSE_START_SEASON")
     args = parser.parse_args()
 
     engine = get_engine()
@@ -443,6 +535,15 @@ def main() -> None:
     if args.salaries:
         first = int(os.environ.get("SALARY_START_SEASON", "2023"))
         load_salaries(engine, first, current_season())
+    if args.defense:
+        load_defense(engine, current_season())
+        print_defense_counts(engine)
+    if args.defense_backfill:
+        # On/off and tracking data add up, so only 2024-25 onward (free tier is 500 MB)
+        first = int(os.environ.get("DEFENSE_START_SEASON", "2024"))
+        for season in range(first, current_season() + 1):
+            load_defense(engine, season)
+        print_defense_counts(engine)
 
 
 if __name__ == "__main__":

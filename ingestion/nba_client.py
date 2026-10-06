@@ -5,10 +5,14 @@ import pandas as pd
 from nba_api.stats.endpoints import (
     leaguedashplayerbiostats,
     leaguedashplayerclutch,
+    leaguedashptdefend,
     leaguedashteamclutch,
+    leaguedashteamstats,
     leaguegamelog,
+    leaguehustlestatsplayer,
     scheduleleaguev2,
     shotchartdetail,
+    teamplayeronoffsummary,
 )
 from nba_api.stats.static import players, teams
 
@@ -134,5 +138,75 @@ def get_schedule(start_year: int) -> pd.DataFrame:
     return _with_retries(lambda: scheduleleaguev2.ScheduleLeagueV2(
         league_id="00",
         season=season_label(start_year),
+        timeout=60,
+    ).get_data_frames()[0])
+
+
+# ---- Defense (phase 2) ----
+
+# LeagueDashPtDefend categories we load: all shots, threes, and shots at the rim.
+DEFENSE_CATEGORIES = ["Overall", "3 Pointers", "Less Than 6Ft"]
+
+
+def get_player_on_off(team_id: int, start_year: int, season_type: str) -> pd.DataFrame:
+    """Team ratings with each player on and off the court, for one team.
+
+    The API returns an overall table plus one table per court status. We stack the two player
+    tables and keep each row's own COURT_STATUS, lowercased to 'on' or 'off'.
+    """
+    tables = _with_retries(lambda: teamplayeronoffsummary.TeamPlayerOnOffSummary(
+        team_id=team_id,
+        season=season_label(start_year),
+        season_type_all_star=season_type,
+        measure_type_detailed_defense="Base",
+        per_mode_detailed="Totals",
+        timeout=60,
+    ).get_data_frames())
+    return stack_on_off(tables[1:])
+
+
+def stack_on_off(tables: list[pd.DataFrame]) -> pd.DataFrame:
+    """Stack the on-court and off-court player tables.
+
+    The rows say which is which (COURT_STATUS 'On' / 'Off'). The table order does not match the
+    endpoint's dataset names, so never label rows by their position.
+    """
+    frames = [df for df in tables if not df.empty]
+    if not frames:
+        return pd.DataFrame()
+    df = pd.concat(frames, ignore_index=True)
+    df["COURT_STATUS"] = df["COURT_STATUS"].str.lower()
+    return df
+
+
+def get_player_defended_shots(start_year: int, season_type: str, category: str) -> pd.DataFrame:
+    """Opponent shooting when each player was the closest defender, for one shot category."""
+    df = _with_retries(lambda: leaguedashptdefend.LeagueDashPtDefend(
+        defense_category=category,
+        season=season_label(start_year),
+        season_type_all_star=season_type,
+        per_mode_simple="Totals",
+        timeout=60,
+    ).get_data_frames()[0])
+    return df.assign(CATEGORY=category) if not df.empty else df
+
+
+def get_player_hustle(start_year: int, season_type: str) -> pd.DataFrame:
+    """Season totals of contests, deflections, charges, loose balls and box-outs."""
+    return _with_retries(lambda: leaguehustlestatsplayer.LeagueHustleStatsPlayer(
+        season=season_label(start_year),
+        season_type_all_star=season_type,
+        per_mode_time="Totals",
+        timeout=60,
+    ).get_data_frames()[0])
+
+
+def get_team_defense_misc(start_year: int, season_type: str) -> pd.DataFrame:
+    """Per-game points each team allows off turnovers, second chances, fast breaks and in the paint."""
+    return _with_retries(lambda: leaguedashteamstats.LeagueDashTeamStats(
+        measure_type_detailed_defense="Misc",
+        season=season_label(start_year),
+        season_type_all_star=season_type,
+        per_mode_detailed="PerGame",
         timeout=60,
     ).get_data_frames()[0])

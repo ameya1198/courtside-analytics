@@ -49,6 +49,9 @@ jobs:
       - name: Load clutch splits, player bio and schedule
         run: python -m ingestion.load --extras
 
+      - name: Load player and team defense (on/off, defended shots, hustle)
+        run: python -m ingestion.load --defense
+
       - name: Install dbt packages
         working-directory: dbt
         run: dbt deps
