@@ -8,7 +8,8 @@ import { pageData } from "@/lib/db";
 import { dec3, one, ordinal, parseSeason, seasonOptions, shortDate, signed } from "@/lib/format";
 import { FACTOR_META, cap, zoneName } from "@/lib/insights";
 import { myTeam } from "@/lib/my-team";
-import { colorDistance, onColor, opponentColor, teamColor, teamTheme } from "@/lib/teams";
+import { colorDistance, logoUrl, onColor, opponentColor, teamColor, teamTheme } from "@/lib/teams";
+import { RemoteImage } from "@/components/remote-image";
 import type { MatchupData, TeamRow } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Matchup Scout" };
@@ -16,18 +17,25 @@ export const revalidate = 3600;
 
 function Side({ t, bg, clutch }: { t: TeamRow; bg: string; clutch?: { w: number; l: number; net: number | null; net_rank: number } }) {
   return (
-    <div className="flex flex-col gap-3 px-4 pb-10 pt-8 md:px-12" style={{ background: bg, color: onColor(bg) }}>
-      <span className="display display-tight text-[clamp(96px,12vw,150px)]">{t.abbr}</span>
-      <span className="display text-[28px] font-extrabold tracking-[0.04em]">{t.name} · {t.w}-{t.l}</span>
-      <div className="grid grid-cols-3 gap-3 border-t border-current pt-3">
-        {[["Net", signed(t.net)], ["Offense", t.ortg.toFixed(1)], ["Defense", t.drtg.toFixed(1)]].map(([l, v]) => (
-          <div key={l} className="flex flex-col"><span className="label">{l}</span><span className="display text-[clamp(40px,4.5vw,60px)]">{v}</span></div>
-        ))}
+    <div className="relative overflow-hidden px-4 pb-10 pt-8 md:px-12" style={{ background: bg, color: onColor(bg) }}>
+      {/* Faded team logo, like the Team Report header */}
+      <div aria-hidden className="pointer-events-none absolute hidden md:block"
+        style={{ right: "4%", top: "50%", width: "46%", maxWidth: 340, transform: "translateY(-50%)", opacity: 0.14 }}>
+        <RemoteImage src={logoUrl(t.team_id)} alt="" className="h-auto w-full" />
       </div>
-      <span className="font-mono text-[13px]">
-        PACE {t.pace.toFixed(1)}
-        {clutch ? ` · CLUTCH ${clutch.w}-${clutch.l}, NET ${clutch.net === null ? "-" : signed(clutch.net)} (${ordinal(clutch.net_rank)})` : ""}
-      </span>
+      <div className="relative flex flex-col gap-3" style={{ zIndex: 1 }}>
+        <span className="display display-tight text-[clamp(96px,12vw,150px)]">{t.abbr}</span>
+        <span className="display text-[28px] font-extrabold tracking-[0.04em]">{t.name} · {t.w}-{t.l}</span>
+        <div className="grid grid-cols-3 gap-3 border-t border-current pt-3">
+          {[["Net", signed(t.net)], ["Offense", t.ortg.toFixed(1)], ["Defense", t.drtg.toFixed(1)]].map(([l, v]) => (
+            <div key={l} className="flex flex-col"><span className="label">{l}</span><span className="display text-[clamp(40px,4.5vw,60px)]">{v}</span></div>
+          ))}
+        </div>
+        <span className="font-mono text-[13px]">
+          PACE {t.pace.toFixed(1)}
+          {clutch ? ` · CLUTCH ${clutch.w}-${clutch.l}, NET ${clutch.net === null ? "-" : signed(clutch.net)} (${ordinal(clutch.net_rank)})` : ""}
+        </span>
+      </div>
     </div>
   );
 }

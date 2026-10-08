@@ -8,7 +8,7 @@ import { ParamSelect } from "@/components/param-select";
 import { pageData } from "@/lib/db";
 import { myTeam } from "@/lib/my-team";
 import { ordinal, parseSeason, seasonOptions, signed } from "@/lib/format";
-import { teamTheme } from "@/lib/teams";
+import { logoUrl, teamTheme } from "@/lib/teams";
 import type { RestData } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Rest and Schedule" };
@@ -49,6 +49,7 @@ export default async function RestSchedule({ searchParams }: { searchParams: Pro
       <Hero
         eyebrow={`${mine.city} ${mine.name} · Win rate on the second night of a back-to-back`}
         title={b2b ? pct(b2b.win_pct) : "No data"}
+        watermark={{ src: logoUrl(mine.id), alt: `${mine.name} logo` }}
         controls={<ParamSelect name="season" label="Season" value={String(d.season)} options={seasonOptions(d.seasons)} />}
         side={
           b2b ? (

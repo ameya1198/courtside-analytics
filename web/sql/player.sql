@@ -1,4 +1,5 @@
 -- Player Profile. $1 = season (null = latest), $2 = player_id (null = top scorer per 36 among qualified players).
+-- Also returns today's rosters, so the latest season lists each team's current players.
 -- Qualified: played at least 48% of the most games any team has played, and 20+ minutes a game.
 with s as (
   select coalesce($1::int, (select max(season) from marts.mart_team_ratings where season_type = 'Regular Season')) as season
@@ -58,8 +59,10 @@ last_games as (
   order by game_date desc limit 20
 ),
 shots as (
+  -- Every season of shots we hold (2022-23 on) up to the one shown, on one map: more seasons give a
+  -- steadier picture of where he shoots
   select sh.* from marts.fct_shots sh, s, pick
-  where sh.season = s.season and sh.season_type = 'Regular Season' and sh.player_id = pick.player_id
+  where sh.season <= s.season and sh.season_type = 'Regular Season' and sh.player_id = pick.player_id
 ),
 bins as (
   select (floor(loc_x / 50.0) * 50)::int as x, (floor(loc_y / 50.0) * 50)::int as y,
@@ -71,6 +74,11 @@ select json_build_object(
   'season', (select season from s),
   'seasonLabel', (select min(season_label) from marts.mart_team_ratings, s where mart_team_ratings.season = s.season),
   'seasons', (select json_agg(distinct season order by season desc) from marts.mart_team_ratings where season_type = 'Regular Season'),
+  -- Today's rosters (2026-27 and on): [player_id, name, team, position]. The page lists its team's current
+  -- players when it shows the latest season, so summer trades and signings show up.
+  'rosterSeason', (select max(roster_season) from marts.mart_roster_status),
+  'rosters', (select coalesce(json_agg(json_build_array(player_id, player_name, team_abbreviation, position)), '[]'::json)
+              from marts.mart_roster_status where not is_free_agent),
   'minGames', (select min_gp from bar),
   'qualifiedCount', (select count(*) from qualified),
   -- Everyone who played, not just qualified players. Element 7 says if the player is ranked, element 8 lists their teams.
@@ -78,6 +86,15 @@ select json_build_object(
                            order by (q.player_id is not null) desc, l.ppg desc)
            from season_line l left join qualified q using (player_id)),
   'player', (select row_to_json(l) from season_line l, pick where l.player_id = pick.player_id),
+  -- This season's preseason for the requested player (rookies have no season line, so use $2 directly).
+  -- The page shows it only for rookies and new signings.
+  'preseason', (select json_build_object('season', season, 'seasonLabel', season_label, 'team', team_abbreviation,
+      'games', games, 'lastGame', last_game, 'mpg', mpg::float, 'ppg', ppg::float, 'rpg', rpg::float, 'apg', apg::float,
+      'spg', spg::float, 'bpg', bpg::float, 'fgm', fgm, 'fga', fga, 'fg3m', fg3m, 'fg3a', fg3a,
+      'fg_pct', fg_pct::float, 'fg3_pct', fg3_pct::float, 'ts', ts_pct::float)
+    from marts.mart_player_preseason m
+    where m.player_id = coalesce($2::bigint, (select player_id from pick))
+      and m.season = (select max(roster_season) from marts.mart_roster_status)),
   'percentiles', (select row_to_json(p) from pct p, pick where p.player_id = pick.player_id),
   'lastGames', (select coalesce(json_agg(g order by g.game_date), '[]'::json) from last_games g),
   'value', (select json_build_object('age', v.age::float, 'salary', v.salary, 'fantasy_ppg', v.fantasy_ppg::float,
@@ -101,6 +118,9 @@ select json_build_object(
     'total', (select count(*) from shots),
     'rimFga', (select count(*) from shots where shot_distance <= 4),
     'rimFgm', (select count(*) from shots where shot_distance <= 4 and is_made),
-    'bins', (select coalesce(json_agg(json_build_array(x, y, a, m)), '[]'::json) from bins)
+    'bins', (select coalesce(json_agg(json_build_array(x, y, a, m)), '[]'::json) from bins),
+    -- Shots per season on the map, e.g. [[2022, 1133], [2023, 1445], [2024, 1258], [2025, 799]]
+    'seasons', (select coalesce(json_agg(json_build_array(season, n) order by season), '[]'::json)
+                from (select season, count(*)::int as n from shots group by season) x)
   )
 ) as data

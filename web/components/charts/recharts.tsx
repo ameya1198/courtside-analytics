@@ -10,6 +10,7 @@ import {
   Activity, BatteryLow, BedDouble, CalendarDays, CircleDollarSign, CircleX, Crosshair, Flame, Hand, Handshake, History, House,
   Medal, Scale, Swords, Target, Trophy, TrendingDown, TrendingUp, Users,
 } from "lucide-react";
+import { lastName } from "@/lib/format";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig, type TooltipRow } from "@/components/ui/chart";
 
 const axis = { tickLine: false, axisLine: false, tick: { fontFamily: "var(--font-mono)", fontSize: 12 } } as const;
@@ -301,7 +302,7 @@ export type HBar = {
 };
 
 export function HorizontalBarChart({
-  data, name, icon, domain, refLine, categoryWidth = 64, rowHeight = 40, maxHeight, focusKey, labelSize = 20, bigValues = false,
+  data, name, icon, domain, refLine, categoryWidth = 64, rowHeight = 40, maxHeight, focusKey, labelSize = 20, bigValues = false, valueWidth,
 }: {
   data: HBar[];
   /** Tooltip label for the value, e.g. "Percentile". */
@@ -321,6 +322,8 @@ export function HorizontalBarChart({
   labelSize?: number;
   /** Show the values on the right as big display numbers (percentiles), not small mono text. */
   bigValues?: boolean;
+  /** Room for the values on the right. Wider for labels like "27TH". */
+  valueWidth?: number;
 }) {
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -337,7 +340,7 @@ export function HorizontalBarChart({
         <XAxis type="number" dataKey="value" hide domain={domain ?? [0, "dataMax"]} />
         <YAxis dataKey="key" type="category" {...axis} tickMargin={10} width={categoryWidth} interval={0}
           tick={(t: TickProps) => <DisplayTick x={t.x} y={t.y} anchor="end" size={labelSize} text={byKey.get(t.payload.value)?.label ?? t.payload.value} />} />
-        <YAxis yAxisId="value" orientation="right" dataKey="key" type="category" {...axis} tickMargin={8} width={bigValues ? 64 : 72} interval={0}
+        <YAxis yAxisId="value" orientation="right" dataKey="key" type="category" {...axis} tickMargin={8} width={valueWidth ?? (bigValues ? 64 : 72)} interval={0}
           {...(bigValues
             ? { tick: (t: TickProps) => <DisplayTick x={t.x} y={t.y} anchor="start" size={30} text={byKey.get(t.payload.value)?.valueText ?? ""} /> }
             : { tickFormatter: (k: string) => byKey.get(k)?.valueText ?? "" })} />
@@ -383,6 +386,92 @@ export function PairedHorizontalBarChart({
           <LabelList dataKey="bText" position="right" offset={8} className="fill-[var(--ink)] font-mono text-[12px]" />
         </Bar>
       </BarChart>
+    </ChartContainer>
+  );
+}
+
+/** Small rolling-average line for one Roster Needs measure, against a dashed league-average line. */
+export function NeedTrendChart({ data, league, label, format }: {
+  data: { g: number; value: number; date: string }[];
+  league: number;
+  label: string;
+  /** "pct" shows 0.223 as 22.3%, "dec3" as .223, "num" as 12.3 */
+  format: "pct" | "dec3" | "num";
+}) {
+  const fmt = (v: number) => (format === "pct" ? `${(v * 100).toFixed(1)}%` : format === "dec3" ? v.toFixed(3).replace(/^0/, "") : v.toFixed(1));
+  const config = { value: { label, color: "var(--accent)", icon: Activity } } satisfies ChartConfig;
+  const vals = [...data.map((d) => d.value), league];
+  const pad = (Math.max(...vals) - Math.min(...vals)) * 0.15 || 0.01;
+  const last = data[data.length - 1];
+  return (
+    <ChartContainer config={config} className="aspect-auto w-full" style={{ height: 150 }}>
+      <LineChart data={data} margin={{ top: 14, right: 12, left: 12, bottom: 0 }}>
+        <XAxis dataKey="g" hide />
+        <YAxis hide domain={[Math.min(...vals) - pad, Math.max(...vals) + pad]} />
+        <ReferenceLine y={league} stroke="var(--panel-muted)" strokeDasharray="4 4"
+          label={{ value: `LEAGUE ${fmt(league)}`, position: "insideTopRight", fill: "var(--panel-muted)", fontFamily: "var(--font-mono)", fontSize: 10 }} />
+        <ChartTooltip {...tip} content={<ChartTooltipContent labelFormatter={(_, p) => `Games ${Math.max(1, (p?.[0]?.payload?.g ?? 10) - 9)}-${p?.[0]?.payload?.g} · to ${p?.[0]?.payload?.date}`}
+          rows={(d) => [{ key: "value", value: fmt(d.value) }]} />} />
+        <Line dataKey="value" type="monotone" stroke="var(--color-value)" strokeWidth={3} dot={false} isAnimationActive={false} />
+        {last ? <ReferenceDot x={last.g} y={last.value} r={5} fill="var(--accent)" stroke="none" /> : null}
+      </LineChart>
+    </ChartContainer>
+  );
+}
+
+/** Roster Needs: how well each candidate fits the team's holes, against his salary. Top left is the most fit for the money. */
+export function FitScatterChart({ points, highlight, medianSalary, medianFit }: {
+  points: { id: number; name: string; team: string; salaryM: number; fit: number }[];
+  highlight: number[];
+  medianSalary: number;
+  medianFit: number;
+}) {
+  const config = {
+    fit: { label: "Fit", color: "var(--panel-dot)", icon: Target },
+    salary: { label: "Salary", icon: CircleDollarSign },
+  } satisfies ChartConfig;
+  const hot = new Set(highlight);
+  const rest = points.filter((p) => !hot.has(p.id));
+  const xMax = Math.ceil(Math.max(10, ...points.map((p) => p.salaryM)) / 10) * 10;
+  // Label placement, worked out in chart units: names in the right quarter go left of the dot, and a name that
+  // would sit on one already placed is dropped (hovering still names the dot). Highlight order = priority.
+  const placed: { x0: number; x1: number; fit: number }[] = [];
+  const marked = highlight.map((id) => points.find((p) => p.id === id)).filter((p): p is NonNullable<typeof p> => Boolean(p)).map((p) => {
+    const short = lastName(p.name).toUpperCase();
+    const w = (short.length * 7.5 + 14) / 560 * xMax; // label width in salary units, for a ~560px wide chart
+    const left = p.salaryM > xMax * 0.72;
+    const x0 = left ? p.salaryM - w : p.salaryM, x1 = left ? p.salaryM : p.salaryM + w;
+    const clash = placed.some((q) => Math.abs(q.fit - p.fit) < 4.5 && x0 < q.x1 && q.x0 < x1);
+    if (!clash) placed.push({ x0, x1, fit: p.fit });
+    return { ...p, short: clash ? "" : short, left };
+  });
+  return (
+    <ChartContainer config={config} className="aspect-auto w-full" style={{ height: 420 }}>
+      <ScatterChart margin={{ top: 24, right: 28, left: 0, bottom: 20 }}>
+        <CartesianGrid stroke="var(--panel-grid)" strokeDasharray="3 3" strokeOpacity={0.7} />
+        <XAxis type="number" dataKey="salaryM" {...axis} domain={[0, xMax]} tickFormatter={(v) => `$${v}M`}
+          label={{ value: "SALARY", position: "insideBottom", offset: -14, fill: "var(--panel-muted)", fontFamily: "var(--font-mono)", fontSize: 11 }} />
+        <YAxis type="number" dataKey="fit" {...axis} width={44} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]}
+          label={{ value: "FIT", angle: -90, position: "insideLeft", offset: 12, fill: "var(--panel-muted)", fontFamily: "var(--font-mono)", fontSize: 11 }} />
+        <ZAxis range={[40, 40]} />
+        <ReferenceLine x={medianSalary} stroke="var(--panel-muted)" strokeDasharray="4 4" />
+        <ReferenceLine y={medianFit} stroke="var(--panel-muted)" strokeDasharray="4 4" />
+        <ChartTooltip cursor={false} {...tip}
+          content={<ChartTooltipContent labelFormatter={(_, p) => `${p?.[0]?.payload?.name} · ${p?.[0]?.payload?.team}`}
+            rows={(d) => [{ key: "fit", value: String(d.fit) }, { key: "salary", value: `$${d.salaryM.toFixed(1)}M` }]} />} />
+        <Scatter data={rest} fill="var(--panel-dot)" fillOpacity={0.75} isAnimationActive={false} />
+        <Scatter data={marked} fill="var(--accent)" stroke="var(--paper)" strokeWidth={2} isAnimationActive={false}>
+          <LabelList dataKey="short" content={(p) => {
+            const { x, y, index, value } = p as { x: number; y: number; index: number; value: string };
+            if (!value) return null;
+            const left = marked[index]?.left;
+            return (
+              <text x={x + 6 + (left ? -12 : 12)} y={y + 6} dy={4} textAnchor={left ? "end" : "start"} fill="var(--panel-ink)"
+                style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>{value}</text>
+            );
+          }} />
+        </Scatter>
+      </ScatterChart>
     </ChartContainer>
   );
 }

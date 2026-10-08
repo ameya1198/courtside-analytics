@@ -11,6 +11,7 @@ const TABS = [
   { href: "/defense", label: "Defense" },
   { href: "/player", label: "Player Profile" },
   { href: "/value", label: "Player Value" },
+  { href: "/needs", label: "Roster Needs" },
   { href: "/rest", label: "Rest and Schedule" },
   { href: "/matchup", label: "Matchup Scout" },
   { href: "/tonight", label: "Tonight" },
@@ -21,7 +22,6 @@ export function NavTabs() {
   const params = useSearchParams();
   // Keep the chosen season when moving between pages.
   const season = params.get("season");
-  if (path === "/pick") return null; // the team picker has no tabs
   // The wrapper lets the progress bar sit over the bottom border, outside the scrolling tab strip
   return (
     <div className="relative">

@@ -4,7 +4,7 @@ import path from "node:path";
 import { unstable_cache } from "next/cache";
 import postgres from "postgres";
 
-export type PageQuery = "league" | "team" | "defense" | "player" | "value" | "rest" | "matchup" | "tonight";
+export type PageQuery = "league" | "team" | "defense" | "player" | "value" | "rest" | "matchup" | "tonight" | "needs";
 
 const root = process.cwd();
 const url = process.env.DATABASE_URL;
@@ -28,7 +28,7 @@ async function runLive<T>(name: PageQuery, params: (string | number | null)[]): 
 
 const cached = unstable_cache(
   async (name: PageQuery, params: (string | number | null)[]) => runLive(name, params),
-  ["page-query-v6"], // bump when a SQL file changes shape, so stale cached results are ignored
+  ["page-query-v15"], // bump when a SQL file changes shape, so stale cached results are ignored
   { revalidate: 3600, tags: ["warehouse"] },
 );
 

@@ -14,10 +14,12 @@ const PAGES: Record<string, { title: string; detail: string }> = {
     title: "Player Value",
     detail: "Crunching dollars per Win Share",
   },
+  "/needs": { title: "Roster Needs", detail: "Ranking your holes and every target" },
   "/rest": { title: "Rest and Schedule", detail: "Checking the schedule" },
   "/matchup": { title: "Matchup Scout", detail: "Scouting both teams" },
   "/tonight": { title: "Tonight", detail: "Getting tonight's games" },
   "/pick": { title: "Teams", detail: "Loading all 30 teams" },
+  "/": { title: "Courtside", detail: "Heading back to the start" },
 };
 
 // The full-page loader only shows when a page takes longer than this. Quick loads just get the bar.

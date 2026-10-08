@@ -9,7 +9,7 @@ import { pageData } from "@/lib/db";
 import { parseSeason, seasonOptions, signed } from "@/lib/format";
 import { money } from "@/lib/insights";
 import { myTeam } from "@/lib/my-team";
-import { teamTheme } from "@/lib/teams";
+import { logoUrl, teamTheme } from "@/lib/teams";
 import type { ValueData, ValuePick } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Player Value" };
@@ -84,6 +84,7 @@ export default async function PlayerValue({ searchParams }: { searchParams: Prom
       <Hero
         eyebrow={`Player Value · ${d.seasonLabel} · ${d.pricedCount} qualified players with a known salary`}
         title="Who wins more than they cost"
+        watermark={mine ? { src: logoUrl(mine.id), alt: `${mine.name} logo` } : undefined}
         controls={<ParamSelect name="season" label="Season" value={String(d.season)} options={seasonOptions(d.seasons)} />}
         side={
           best ? (

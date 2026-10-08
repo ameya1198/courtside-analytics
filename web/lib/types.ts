@@ -43,6 +43,15 @@ export type PoolRow = [number, string, string, number, number, number, boolean, 
 export type PlayerData = {
   season: number; seasonLabel: string; seasons: number[];
   minGames: number; qualifiedCount: number;
+  /** Season of today's rosters (start year), and [player_id, name, team, position] for every rostered player */
+  rosterSeason?: number | null;
+  rosters?: [number, string, string, string | null][];
+  /** This season's preseason averages, shown only for rookies and new signings */
+  preseason?: {
+    season: number; seasonLabel: string; team: string; games: number; lastGame: string; mpg: number; ppg: number;
+    rpg: number; apg: number; spg: number; bpg: number; fgm: number; fga: number; fg3m: number; fg3a: number;
+    fg_pct: number | null; fg3_pct: number | null; ts: number | null;
+  } | null;
   pool: PoolRow[] | null;
   player: {
     player_id: number; name: string; team: string; team_id: number; gp: number; mpg: number; ppg: number;
@@ -50,7 +59,8 @@ export type PlayerData = {
   } | null;
   percentiles: { pts: number; reb: number; ast: number; stl: number; blk: number; ts: number; fg3: number; p36_rank: number } | null;
   lastGames: { game_date: string; opp: string; home: boolean; win: boolean; pts: number; reb: number; ast: number; min: number }[];
-  shots: { total: number; rimFga: number; rimFgm: number; bins: [number, number, number, number][] };
+  /** Shots from this season and the one before, on one map. `seasons` = [season, shots] pairs. */
+  shots: { total: number; rimFga: number; rimFgm: number; bins: [number, number, number, number][]; seasons?: [number, number][] };
   value?: { age: number | null; salary: number | null; fantasy_ppg: number; per_pt: number | null } | null;
   clutch?: { games: number; pts: number; ts: number | null; plus_minus: number; pts_rank: number; minutes: number } | null;
   /** On/off and defended shooting (mart_player_defense). Null when the player has no defense data. */
@@ -156,4 +166,26 @@ export type DefenseData = {
   bins: [number, number, number, number][];
   players: DefensePlayer[];
   misc?: DefenseMisc | null;
+};
+
+// Roster Needs (sql/needs.sql)
+export type NeedPcts = Partial<Record<import("./needs").NeedKey, number | null>>;
+export type TeamNeed = {
+  need: import("./needs").NeedKey; side: "Offense" | "Defense"; higherIsBetter: boolean;
+  value: number; leagueAvg: number; best: number; rank: number; pctile: number;
+};
+export type NeedTrendRow = { g: number; date: string } & Partial<Record<import("./needs").NeedKey, number | null>>;
+export type RosterRow = { id: number; name: string; mpg: number; fit: number | null; pcts: NeedPcts | null; position: string | null };
+// [id, name, team, fit, salary, age, ws, vorp, $ per WS, seller, minutes, games, percentiles by need,
+//  tier, free agent, contract end season, why untouchable or hard to get, position]
+export type Candidate = [
+  number, string, string, number, number, number | null, number | null, number | null, number | null, boolean, number, number, NeedPcts,
+  "untouchable" | "hard" | "gettable", boolean, number | null, string | null, string | null,
+];
+export type NeedsData = {
+  season: number | null; seasonLabel: string | null; seasons: number[]; side: "both" | "offense" | "defense";
+  /** Season of today's rosters, when they apply to the season shown; null for older seasons */
+  rosterSeason: number | null;
+  needs: TeamNeed[]; holes: import("./needs").NeedKey[]; trend: NeedTrendRow[];
+  roster: RosterRow[]; candidates: Candidate[];
 };

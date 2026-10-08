@@ -16,3 +16,12 @@ export const parseSeason = (v: string | string[] | undefined) => {
   return Number.isInteger(n) && n > 1990 && n < 2100 ? n : null;
 };
 export const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? null;
+
+// Name suffixes that are not a surname: "Jimmy Butler III" -> "Butler", "Jaren Jackson Jr." -> "Jackson"
+const SUFFIXES = new Set(["jr", "jr.", "sr", "sr.", "ii", "iii", "iv", "v"]);
+/** A player's surname for headlines and chart labels, skipping Jr., III and the like. */
+export const lastName = (name: string) => {
+  const parts = name.trim().split(/\s+/);
+  while (parts.length > 1 && SUFFIXES.has(parts[parts.length - 1].toLowerCase())) parts.pop();
+  return parts[parts.length - 1];
+};

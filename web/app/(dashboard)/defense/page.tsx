@@ -152,7 +152,7 @@ export default async function Defense({ searchParams }: { searchParams: Promise<
               <ZoneRows zones={d.zones} compare={d.compareZones} abbr={chosen ?? "Opp"} compareLabel={chosen ? "Usual" : "League"} />
             </div>
           ) : (
-            <Empty>No shot locations for these games. Shot charts cover 2024-25 onward.</Empty>
+            <Empty>No shot locations for these games. Shot charts cover 2022-23 onward.</Empty>
           )}
         </Section>
 

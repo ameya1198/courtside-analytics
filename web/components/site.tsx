@@ -11,7 +11,8 @@ export async function SiteHeader() {
   return (
     <header>
       <div className="flex flex-wrap items-stretch justify-between bg-ink text-white">
-        <Link href={mine ? "/team" : "/"} className="display bg-white px-5 py-3 text-[22px] tracking-[0.04em] text-ink md:px-7">
+        {/* The logo always goes back to the landing page; Team Report has its own tab */}
+        <Link href="/" className="display bg-white px-5 py-3 text-[22px] tracking-[0.04em] text-ink md:px-7">
           Courtside
         </Link>
         <div className="label flex items-center gap-3 px-5 py-3 text-[#A7AEBB] md:px-7">

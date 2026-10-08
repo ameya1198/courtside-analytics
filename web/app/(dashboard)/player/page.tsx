@@ -16,39 +16,120 @@ import type { PlayerData, PoolRow } from "@/lib/types";
 export const metadata: Metadata = { title: "Player Profile" };
 export const revalidate = 3600;
 
+type Preseason = NonNullable<PlayerData["preseason"]>;
+const pct1 = (v: number | null) => (v === null ? "-" : `${(v * 100).toFixed(1)}%`);
+// Inline grid, so the tiles hold their layout even before a stylesheet rebuild
+const PRESEASON_COLS = { gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))" };
+
+/** Preseason averages for rookies and new signings. Clearly labelled: nothing else on the site counts preseason. */
+function PreseasonBox({ p, who }: { p: Preseason; who: "rookie" | "signing" }) {
+  const tiles: [string, string, string?][] = [
+    ["Games", String(p.games), `through ${shortDate(p.lastGame)}`],
+    ["Minutes", p.mpg.toFixed(1), "a game"],
+    ["Points", p.ppg.toFixed(1), "a game"],
+    ["Rebounds", p.rpg.toFixed(1), "a game"],
+    ["Assists", p.apg.toFixed(1), "a game"],
+    ["Field goals", pct1(p.fg_pct), `${p.fgm}-${p.fga}`],
+    ["Threes", pct1(p.fg3_pct), `${p.fg3m}-${p.fg3a}`],
+    ["True shooting", p.ts === null ? "-" : dec3(p.ts)],
+  ];
+  return (
+    <ChartCard
+      title={`Preseason so far: ${p.ppg.toFixed(1)} points, ${p.rpg.toFixed(1)} rebounds and ${p.apg.toFixed(1)} assists in ${p.mpg.toFixed(0)} minutes a game.`}
+      description={`${p.games} ${p.seasonLabel} preseason game${p.games === 1 ? "" : "s"} with ${p.team}. Shown because he ${who === "rookie" ? "has no regular-season games yet" : "is new to the team"}. Preseason is not counted anywhere else on the site: starters rest and coaches try things out.`}
+    >
+      <div className="grid gap-4 border-t-[3px] border-ink pt-4" style={PRESEASON_COLS}>
+        {tiles.map(([label, value, note]) => (
+          <div key={label} className="flex flex-col gap-0.5">
+            <span className="label text-muted">{label}</span>
+            <span className="display text-[44px]">{value}</span>
+            {note ? <span className="font-mono text-[12px] text-muted">{note}</span> : null}
+          </div>
+        ))}
+      </div>
+    </ChartCard>
+  );
+}
+
 export default async function PlayerProfile({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
   const id = Number(one(sp.player));
   const season = parseSeason(sp.season);
   const mine = await myTeam();
   let d = await pageData<PlayerData>("player", [season, Number.isFinite(id) && id > 0 ? id : null]);
-  // Only players who appeared for the chosen team that season (traded players count for both teams)
-  const onTeam = (r: PoolRow) => !mine || (r[7] ?? [r[2]]).includes(mine.abbr);
-  if (mine && !d.pool?.some((r) => r[0] === d.player?.player_id && onTeam(r))) {
+  // On the latest season, list the team's roster today (summer trades and signings included), rated on that
+  // season's numbers wherever each player played. Older seasons list who actually played for the team.
+  const latest = Boolean(d.rosterSeason && d.season === d.seasons[0] && d.rosterSeason - 1 <= d.season);
+  const roster = latest && mine ? (d.rosters ?? []).filter((r) => r[2] === mine.abbr) : [];
+  const rosterIds = new Set(roster.map((r) => r[0]));
+  const onTeam = (r: PoolRow) => !mine || (latest ? rosterIds.has(r[0]) : (r[7] ?? [r[2]]).includes(mine.abbr));
+  // Rostered players with no games that season: rookies, and anyone who sat the whole year out
+  const noGames = roster.filter((r) => !d.pool?.some((q) => q[0] === r[0]));
+  const picked = noGames.find((r) => r[0] === id);
+  if (mine && !picked && !d.pool?.some((r) => r[0] === d.player?.player_id && onTeam(r))) {
     // The pool is sorted ranked players first, then by points: open the team's best ranked player
     const top = d.pool?.find(onTeam);
     if (top) d = await pageData<PlayerData>("player", [season, top[0]]);
   }
+  // New arrivals say where they played: "Kristaps Porziņģis · ATL in 2025-26"
+  const label = (r: PoolRow) => {
+    const teams = (r[7] ?? [r[2]]).join("/");
+    return latest && mine && !(r[7] ?? [r[2]]).includes(mine.abbr) ? `${r[1]} · ${teams} in ${d.seasonLabel}` : `${r[1]} · ${teams}`;
+  };
+  const noGameOptions = noGames.map((r) => ({ value: String(r[0]), label: `${r[1]} · no ${d.seasonLabel} games` }));
+  if (picked && mine) {
+    // A current player without games: photo, position and a note instead of stats
+    const others = (d.pool ?? []).filter(onTeam).map((r) => ({ value: String(r[0]), label: label(r) }));
+    return (
+      <div style={teamTheme(mine.abbr)}>
+        <Hero
+          eyebrow={["Player Profile", mine.abbr, picked[3], `No ${d.seasonLabel} games`].filter(Boolean).join(" · ")}
+          title={picked[1]}
+          controls={<>
+            <ParamSelect name="player" label="Player" value={String(picked[0])} options={[...others, ...noGameOptions]} />
+            <ParamSelect name="season" label="Season" value={String(d.season)} options={seasonOptions(d.seasons)} />
+          </>}
+          portrait={<RemoteImage src={headshotUrl(picked[0])} alt={picked[1]} className="h-full w-auto max-w-[44vw] object-contain object-bottom" />}
+        />
+        <Wrap className="py-20">
+          {d.preseason ? <div className="mb-8"><PreseasonBox p={d.preseason} who="rookie" /></div> : null}
+          <Empty>{picked[1]} is on the {mine.abbr} roster for {d.rosterSeason ? `${d.rosterSeason}-${String((d.rosterSeason + 1) % 100).padStart(2, "0")}` : "this season"} but
+            played no NBA games in {d.seasonLabel}. His profile fills in once he plays.</Empty>
+        </Wrap>
+      </div>
+    );
+  }
+
   const p = d.player;
   if (mine && p && !d.pool?.some((r) => r[0] === p.player_id && onTeam(r))) return <Wrap className="py-20"><Empty>No {mine.name} players have played this season yet.</Empty></Wrap>;
   if (!p) return <Wrap className="py-20"><Empty>No player data for this season yet.</Empty></Wrap>;
 
-  // The dropdown lists every player who appeared for the chosen team that season
+  // The dropdown lists the team's players: today's roster on the latest season, otherwise who played for it
   const pool = (d.pool ?? []).filter(onTeam);
+  // His team now (current roster) can differ from the team he played for that season
+  const teamNow = latest && mine && rosterIds.has(p.player_id) ? mine.abbr : p.team;
   const last5 = d.lastGames.slice(-5);
   const recent5 = last5.length ? last5.reduce((a, g) => a + g.pts, 0) / last5.length : null;
   const pc = d.percentiles;
   const def = d.defense ?? null;
   const rimShare = d.shots.total ? d.shots.rimFga / d.shots.total : 0;
   const rimFg = d.shots.rimFga ? d.shots.rimFgm / d.shots.rimFga : 0;
-  const options = pool.some((r) => r[0] === p.player_id)
-    ? pool.map((r) => ({ value: String(r[0]), label: `${r[1]} · ${(r[7] ?? [r[2]]).join("/")}` }))
-    : [{ value: String(p.player_id), label: `${p.name} · ${p.team}` }, ...pool.map((r) => ({ value: String(r[0]), label: `${r[1]} · ${(r[7] ?? [r[2]]).join("/")}` }))];
+  // The map covers every season with shot data up to the one shown (2022-23 on)
+  const seasonName = (yr: number) => `${yr}-${String((yr + 1) % 100).padStart(2, "0")}`;
+  const shotYears = d.shots.seasons ?? [];
+  const shotSpan = shotYears.length > 1
+    ? `${shotYears.length} seasons, ${seasonName(shotYears[0][0])} to ${seasonName(shotYears[shotYears.length - 1][0])} (${shotYears.map(([yr, n]) => `${n.toLocaleString()} in ${seasonName(yr)}`).join(", ")})`
+    : shotYears.length ? seasonName(shotYears[0][0]) : "";
+  const options = [
+    ...(pool.some((r) => r[0] === p.player_id) ? [] : [{ value: String(p.player_id), label: `${p.name} · ${p.team}` }]),
+    ...pool.map((r) => ({ value: String(r[0]), label: label(r) })),
+    ...noGameOptions,
+  ];
 
   return (
-    <div style={teamTheme(p.team)}>
+    <div style={teamTheme(teamNow)}>
       <Hero
-        eyebrow={["Player Profile", p.team, d.value?.age ? `Age ${Math.floor(d.value.age)}` : null, d.value?.salary ? `${money(d.value.salary)} salary` : null, `${p.gp} games`, d.seasonLabel].filter(Boolean).join(" · ")}
+        eyebrow={["Player Profile", teamNow, teamNow !== p.team ? `Played for ${p.team} in ${d.seasonLabel}` : null, d.value?.age ? `Age ${Math.floor(d.value.age)}` : null, d.value?.salary ? `${money(d.value.salary)} salary` : null, `${p.gp} games`, d.seasonLabel].filter(Boolean).join(" · ")}
         title={p.name}
         controls={
           <>
@@ -77,6 +158,8 @@ export default async function PlayerProfile({ searchParams }: { searchParams: Pr
       </Hero>
 
       <Wrap>
+        {/* New signings: their preseason with the new team, before last season's numbers elsewhere */}
+        {teamNow !== p.team && d.preseason ? <Section><PreseasonBox p={d.preseason} who="signing" /></Section> : null}
         {/* Row 1: two equal cards side by side */}
         <Section className="grid items-stretch gap-6 lg:grid-cols-2">
           {pc ? (
@@ -189,7 +272,7 @@ export default async function PlayerProfile({ searchParams }: { searchParams: Pr
           <ChartCard
             className="h-full"
             title={d.shots.total ? `${Math.round(rimShare * 100)}% of his shots come within 4 feet, and ${Math.round(rimFg * 100)}% go in.` : "No shot locations for this season."}
-            description={`Where all ${d.shots.total.toLocaleString()} of his shots came from. Red means more shots, blue fewer.`}
+            description={`Where his ${d.shots.total.toLocaleString()} shots came from${shotSpan ? ` over ${shotSpan}` : ""}. Regular season. Red means more shots, blue fewer.`}
           >
             {d.shots.total ? <ShotHeatmap bins={d.shots.bins} /> : null}
           </ChartCard>
