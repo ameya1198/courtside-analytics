@@ -44,6 +44,14 @@ sources:
         description: Win Shares, Box Plus/Minus and VORP from Basketball-Reference team pages, per player x team x season.
         config:
           freshness: null   # refreshed with salaries, a few times a year
+      - name: preseason_game_logs
+        description: Preseason player game logs. Kept apart from player_game_logs; only the Player Profile preseason box reads them.
+        config:
+          freshness: null   # only exists in October
+      - name: team_rosters
+        description: Every team's current roster (CommonTeamRoster), replaced on each load so it matches today's rosters.
+        config:
+          freshness: null   # reloaded nightly in season and when rosters change
       - name: team_defense_misc
         description: Points each team allows per game off turnovers, second chances, fast breaks and in the paint.
       - name: schedule

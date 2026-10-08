@@ -257,3 +257,92 @@ models:
       - name: team_abbreviation
         data_tests:
           - not_null
+
+  - name: mart_team_need_games
+    description: >
+      One row per team per regular-season game: the counting stats behind the Roster Needs measures for the team
+      and its opponent, plus restricted-area shots from the shot charts. Feeds season totals and rolling trends.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [game_id, team_id]
+    columns:
+      - name: poss
+        data_tests:
+          - not_null
+
+  - name: mart_team_needs
+    description: >
+      One row per team x regular season x need: the 11 Roster Needs measures (6 offense, 5 defense) with league
+      rank (1 = best), percentile (100 = best), league average and best value. A team's worst-ranked needs are its holes.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [team_id, season, need]
+    columns:
+      - name: need
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [three_pt, rim_finishing, ball_security, off_rebounding, ft_rate, playmaking,
+                         rim_protection, perimeter_d, def_rebounding, transition_d, forcing_tov]
+      - name: league_rank
+        data_tests:
+          - not_null
+      - name: pctile
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 100
+
+  - name: mart_player_needs
+    description: >
+      One row per player per regular season: league percentile (100 = best) in each Roster Needs measure, among
+      qualified players (500+ minutes). Used to score trade targets against a team's holes.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [player_id, season]
+    columns:
+      - name: is_qualified
+        data_tests:
+          - not_null
+      - name: three_pt
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 100
+      - name: def_rebounding
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 100
+
+  - name: mart_roster_status
+    description: >
+      Every player on a current roster or who played last season: current team (null = free agent), position,
+      this season's salary, the last season of his contract, and last season's team and salary.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [player_id]
+    columns:
+      - name: is_free_agent
+        data_tests:
+          - not_null
+
+  - name: mart_player_preseason
+    description: >
+      Per-game preseason averages per player and season, for the Player Profile "Preseason so far" box (rookies and
+      new signings only). Kept out of every other model: preseason games are not real games.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [player_id, season]
+    columns:
+      - name: games
+        data_tests:
+          - not_null

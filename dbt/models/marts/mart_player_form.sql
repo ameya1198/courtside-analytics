@@ -1,6 +1,10 @@
 -- Player form: one row per player per game, with rolling averages that show who is hot or cold.
 -- Only games with 10+ minutes count, so 2-minute garbage-time cameos do not distort averages.
 -- Rolling windows stay inside one season and one season type.
+-- A view, not a table: no page reads it, and as a table it took 54 MB of the 500 MB free tier
+-- (room we use for shot charts). Make it a table again if a page starts querying it.
+{{ config(materialized='view') }}
+
 with played as (
     select
         game_id,
