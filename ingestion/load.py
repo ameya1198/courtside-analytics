@@ -168,9 +168,14 @@ def finish_run(engine, run_id: int, status: str, rows: int = 0, error: str | Non
 
 # ---- Loaders ----
 
+# Preseason player logs go to their own table and are not in GAME_LOG_SOURCES, so load_season never mixes
+# them into the regular-season data. Only Player Profile's "Preseason so far" box reads them.
+PRESEASON_SOURCE = {"columns": PLAYER_LOG_COLUMNS, "level": "P"}
+
+
 def load_game_logs(engine, source: str, season: int, season_type: str) -> int:
     """Load one season of one kind of game log. Returns the number of rows loaded."""
-    config = GAME_LOG_SOURCES[source]
+    config = PRESEASON_SOURCE if source == "preseason_game_logs" else GAME_LOG_SOURCES[source]
     run_id = start_run(engine, f"{source}:{season_type}", season)
     try:
         raw = nba_client.get_game_logs(season, season_type, config["level"])
@@ -409,6 +414,41 @@ def print_defense_counts(engine) -> None:
             print(f"raw.{table}: {total} rows ({detail})")
 
 
+ROSTER_COLUMNS = ["team_id", "team_abbreviation", "player_id", "player_name", "position", "age", "experience"]
+
+
+def prepare_roster(df: pd.DataFrame, team_abbreviation: str, season: int) -> pd.DataFrame:
+    """One team's CommonTeamRoster rows, renamed to match raw.team_rosters."""
+    if df.empty:
+        return pd.DataFrame(columns=["season"] + ROSTER_COLUMNS)
+    out = df.rename(columns={"TeamID": "team_id", "PLAYER_ID": "player_id", "PLAYER": "player_name",
+                             "POSITION": "position", "AGE": "age", "EXP": "experience"})
+    out["team_abbreviation"] = team_abbreviation
+    out["season"] = season
+    out["age"] = pd.to_numeric(out["age"], errors="coerce")
+    return out[["season"] + ROSTER_COLUMNS]
+
+
+def load_rosters(engine, season: int) -> None:
+    """Every team's current roster. Replaces the season's rows, so a re-run reflects today's trades and signings."""
+    run_id = start_run(engine, "team_rosters", season)
+    try:
+        frames = []
+        for team in nba_client.get_teams().itertuples():
+            frames.append(prepare_roster(nba_client.get_team_roster(team.id, season), team.abbreviation, season))
+            time.sleep(1)  # 30 calls, one per team
+        df = pd.concat(frames, ignore_index=True).drop_duplicates(["team_id", "player_id"])
+        # A partial load would make healthy players look like free agents, so refuse to write one
+        if df["team_id"].nunique() < 30:
+            raise RuntimeError(f"only {df['team_id'].nunique()} teams returned a roster")
+        replace_rows(engine, "team_rosters", df, "season = :s", {"s": season})
+        finish_run(engine, run_id, "success", len(df))
+        print(f"raw.team_rosters: {len(df)} players on {df['team_id'].nunique()} teams for {season}")
+    except Exception as error:
+        finish_run(engine, run_id, "failed", error=str(error)[:500])
+        raise
+
+
 def load_salaries(engine, first_season: int, last_season: int) -> None:
     """Past and current seasons from team pages, then this and future seasons from the contracts page.
 
@@ -498,6 +538,11 @@ def load_reference(engine) -> None:
             raise
 
 
+def load_preseason(engine, season: int) -> None:
+    """This season's preseason player logs. Reloaded whole each run; empty outside October is fine."""
+    load_game_logs(engine, "preseason_game_logs", season, "Pre Season")
+
+
 def load_season(engine, season: int) -> None:
     """Everything for one season: player and team logs, regular season and playoffs."""
     for source in GAME_LOG_SOURCES:
@@ -518,6 +563,8 @@ def main() -> None:
     parser.add_argument("--extras-backfill", action="store_true", help="clutch and bio for all seasons")
     parser.add_argument("--salaries", action="store_true", help="salaries and advanced stats from Basketball-Reference")
     parser.add_argument("--defense", action="store_true", help="player and team defense for this season")
+    parser.add_argument("--preseason", action="store_true", help="this season's preseason player logs")
+    parser.add_argument("--rosters", action="store_true", help="every team's current roster")
     parser.add_argument("--defense-backfill", action="store_true", help="the defense tables since DEFENSE_START_SEASON")
     args = parser.parse_args()
 
@@ -536,7 +583,7 @@ def main() -> None:
         load_shots_recent(engine, current_season())
     if args.shots_backfill:
         # Shots are big, so we keep fewer seasons than game logs (free tier is 500 MB)
-        first = int(os.environ.get("SHOTS_START_SEASON", "2024"))
+        first = int(os.environ.get("SHOTS_START_SEASON", "2022"))
         for season in range(first, current_season() + 1):
             load_shots_season(engine, season)
     if args.extras:
@@ -555,6 +602,10 @@ def main() -> None:
     if args.defense:
         load_defense(engine, current_season())
         print_defense_counts(engine)
+    if args.preseason:
+        load_preseason(engine, current_season())
+    if args.rosters:
+        load_rosters(engine, current_season())
     if args.defense_backfill:
         # On/off and tracking data add up, so only 2024-25 onward (free tier is 500 MB)
         first = int(os.environ.get("DEFENSE_START_SEASON", "2024"))

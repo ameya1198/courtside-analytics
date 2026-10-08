@@ -52,6 +52,12 @@ jobs:
       - name: Load player and team defense (on/off, defended shots, hustle)
         run: python -m ingestion.load --defense
 
+      - name: Load current rosters (trades, signings, free agents)
+        run: python -m ingestion.load --rosters
+
+      - name: Load preseason player logs (Player Profile box for rookies and new signings)
+        run: python -m ingestion.load --preseason
+
       - name: Install dbt packages
         working-directory: dbt
         run: dbt deps

@@ -3,6 +3,7 @@ import time
 
 import pandas as pd
 from nba_api.stats.endpoints import (
+    commonteamroster,
     leaguedashplayerbiostats,
     leaguedashplayerclutch,
     leaguedashptdefend,
@@ -37,7 +38,7 @@ def get_game_logs(start_year: int, season_type: str, level: str) -> pd.DataFrame
 
     level "P" gives one row per player per game.
     level "T" gives one row per team per game.
-    season_type is "Regular Season" or "Playoffs".
+    season_type is "Regular Season", "Playoffs" or "Pre Season".
     """
     last_error = None
     for attempt in range(3):  # stats.nba.com is flaky, so try up to 3 times
@@ -225,4 +226,11 @@ def get_team_defense_misc(start_year: int, season_type: str) -> pd.DataFrame:
         season_type_all_star=season_type,
         per_mode_detailed="PerGame",
         timeout=60,
+    ).get_data_frames()[0])
+
+
+def get_team_roster(team_id: int, start_year: int) -> pd.DataFrame:
+    """Players on one team's roster for a season, as it stands today."""
+    return _with_retries(lambda: commonteamroster.CommonTeamRoster(
+        team_id=team_id, season=season_label(start_year), timeout=60,
     ).get_data_frames()[0])
