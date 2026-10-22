@@ -25,3 +25,6 @@ export const lastName = (name: string) => {
   while (parts.length > 1 && SUFFIXES.has(parts[parts.length - 1].toLowerCase())) parts.pop();
   return parts[parts.length - 1];
 };
+export const seasonLabel = (s: number) => `${s}-${String((s + 1) % 100).padStart(2, "0")}`;
+/** The season under way today. The NBA season starts in October, so before October it is still last year's. */
+export const currentSeason = (today = new Date()) => (today.getMonth() >= 9 ? today.getFullYear() : today.getFullYear() - 1);

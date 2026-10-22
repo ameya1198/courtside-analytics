@@ -2,9 +2,9 @@ import { Wrap, Heading, Section } from "@/components/blocks";
 import { ChartCard } from "@/components/chart-card";
 import { HorizontalBarChart } from "@/components/charts/recharts";
 import { ThreeRateChart } from "@/components/charts/recharts";
-import { ParamSelect } from "@/components/param-select";
+import { SeasonSwitch } from "@/components/season-switch";
 import { pageData } from "@/lib/db";
-import { ordinal, parseSeason, seasonOptions, signed } from "@/lib/format";
+import { ordinal, parseSeason, signed } from "@/lib/format";
 import { onColor, teamColor, teamTheme } from "@/lib/teams";
 import type { LeagueData } from "@/lib/types";
 
@@ -56,7 +56,7 @@ export default async function LeaguePulse({ searchParams }: { searchParams: Prom
             <span className="label text-[13px]">League Pulse · {d.seasonLabel} · Net rating leader</span>
             <span className="display display-tight text-[clamp(110px,18vw,240px)]">{signed(leader.net)}</span>
             <span className="display text-[clamp(34px,4.4vw,56px)] font-extrabold">{leader.name}</span>
-            <div className="mt-4"><ParamSelect name="season" label="Season" value={String(d.season)} options={seasonOptions(d.seasons)} /></div>
+            <div className="mt-4"><SeasonSwitch value={d.season} seasons={d.seasons} /></div>
           </div>
           <div className="grid min-w-0 flex-[1_1_320px] grid-cols-2 border-t-[3px] border-current">
             <div className="flex flex-col gap-0.5 py-4 pr-4">

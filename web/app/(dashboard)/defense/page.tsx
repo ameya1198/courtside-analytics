@@ -5,8 +5,9 @@ import { DivergingBar, FactorTable, Legend, ShotHeatmap, ZoneRows } from "@/comp
 import { DefRatingChart, HorizontalBarChart } from "@/components/charts/recharts";
 import { Hero, KpiRow } from "@/components/hero";
 import { ParamSelect } from "@/components/param-select";
+import { SeasonSwitch } from "@/components/season-switch";
 import { pageData } from "@/lib/db";
-import { one, ordinal, parseSeason, pct, seasonOptions, signed } from "@/lib/format";
+import { one, ordinal, parseSeason, pct, signed } from "@/lib/format";
 import {
   DEF_FACTOR_META, MISC_META, defFactorsHeadline, defImpactHeadline, defMiscHeadline, defPlayersHeadline, defRolling,
   defTrendHeadline, defZonesHeadline, dfgPoints, impactRanking, money,
@@ -62,7 +63,7 @@ export default async function Defense({ searchParams }: { searchParams: Promise<
         eyebrow={`Defense · ${d.seasonLabel} · points allowed per 100 possessions`}
         title={t.name}
         watermark={{ src: logoUrl(t.team_id), alt: `${t.name} logo` }}
-        controls={<ParamSelect name="season" label="Season" value={String(d.season)} options={seasonOptions(d.seasons)} />}
+        controls={<SeasonSwitch value={d.season} seasons={d.seasons} />}
       >
         <KpiRow
           items={[

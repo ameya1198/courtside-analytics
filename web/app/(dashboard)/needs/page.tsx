@@ -6,8 +6,9 @@ import { HeatLegend, Legend, heatColor } from "@/components/charts/html";
 import { FitScatterChart, HorizontalBarChart, NeedTrendChart, PairedHorizontalBarChart } from "@/components/charts/recharts";
 import { Hero } from "@/components/hero";
 import { ParamSelect } from "@/components/param-select";
+import { SeasonSwitch } from "@/components/season-switch";
 import { pageData } from "@/lib/db";
-import { lastName, one, ordinal, parseSeason, seasonOptions } from "@/lib/format";
+import { lastName, one, ordinal, parseSeason, seasonLabel } from "@/lib/format";
 import { cap, money } from "@/lib/insights";
 import { myTeam } from "@/lib/my-team";
 import { NEEDS, NEED_ORDER, lower, type NeedKey } from "@/lib/needs";
@@ -100,7 +101,8 @@ export default async function RosterNeeds({ searchParams }: { searchParams: Prom
   const salaryKey = SALARY[one(sp.salary) ?? ""] ? one(sp.salary)! : "any";
   const ageKey = AGES[one(sp.age) ?? ""] ? one(sp.age)! : "any";
 
-  const d = await pageData<NeedsData>("needs", [parseSeason(sp.season), mine.abbr, side]);
+  const asked = parseSeason(sp.season);
+  const d = await pageData<NeedsData>("needs", [asked, mine.abbr, side]);
   // Free agents only exist when we know today's rosters (last season or this one)
   const list = listParam === "bargains" ? "bargains" : listParam === "free" && d.rosterSeason ? "free" : "targets";
   if (!d.season || !d.needs.length || !d.holes.length) {
@@ -136,6 +138,24 @@ export default async function RosterNeeds({ searchParams }: { searchParams: Prom
     : improving
       ? `${cap(lower(improving.h.need))} is getting better: ${NEEDS[improving.h.need].fmt(improving.last!)} over the last 10 games, against ${NEEDS[improving.h.need].fmt(improving.h.value)} for the season.`
       : `The holes have held steady all season. They are not slumps, so they need a roster answer.`;
+
+  // ----- This summer's moves: who arrived and who left, rated in our holes (context only, rankings unchanged)
+  const moves = d.moves ?? [];
+  const arrived = moves.filter((m) => m[0] === "arrived");
+  const departed = moves.filter((m) => m[0] === "departed");
+  // The strongest arrival and the biggest loss in any hole (60th percentile or better counts)
+  const bestIn = (list: typeof moves) => list
+    .flatMap((m) => d.holes.map((k) => ({ m, k, p: m[6]?.[k] ?? -1 })))
+    .filter((x) => x.p >= 60)
+    .sort((a, b) => b.p - a.p)[0];
+  const gainMove = bestIn(arrived), lossMove = bestIn(departed);
+  const movesTitle = gainMove && lossMove
+    ? `Adding ${lastName(gainMove.m[2])} helps ${lower(gainMove.k)} (${ordinal(gainMove.p)} percentile). Losing ${lastName(lossMove.m[2])} hurts ${lower(lossMove.k)} (${ordinal(lossMove.p)}).`
+    : gainMove
+      ? `Adding ${lastName(gainMove.m[2])} helps your ${lower(gainMove.k)} hole: ${ordinal(gainMove.p)} percentile last season.`
+      : lossMove
+        ? `Losing ${lastName(lossMove.m[2])} hurts your ${lower(lossMove.k)} hole: he was ${ordinal(lossMove.p)} percentile.`
+        : `This summer's moves don't change much in your holes.`;
 
   // ----- Roster heatmap
   const cols: (NeedKey | null)[] = [...d.holes, null, ...NEED_ORDER.filter((k) => !d.holes.includes(k))];
@@ -211,11 +231,13 @@ export default async function RosterNeeds({ searchParams }: { searchParams: Prom
   return (
     <div style={{ ...teamTheme(mine.abbr), ...(top ? { "--opp": opponentColor(mine.abbr, top[2]) } : {}) } as React.CSSProperties}>
       <Hero
-        eyebrow={`Roster Needs · ${d.seasonLabel} · Ranked against all 30 teams`}
+        eyebrow={asked && asked !== d.season
+          ? `Roster Needs · ${d.seasonLabel} · ${seasonLabel(asked)} opens here after 20 games`
+          : `Roster Needs · ${d.seasonLabel} · Ranked against all 30 teams`}
         title={`Where the ${mine.name} are short`}
         watermark={{ src: logoUrl(mine.id), alt: `${mine.name} logo` }}
         controls={<>
-          <ParamSelect name="season" label="Season" value={String(d.season)} options={seasonOptions(d.seasons)} />
+          <SeasonSwitch value={d.season} seasons={d.seasons} notReady="Roster Needs switches to this season once teams have played 20 games" />
           <Toggle name="side" value={side} options={SIDES} sp={sp} />
         </>}
         side={
@@ -254,6 +276,40 @@ export default async function RosterNeeds({ searchParams }: { searchParams: Prom
           />
           <p className="text-[14px] text-muted">Hover a bar for the team&apos;s value, the league average and the best team. The rank sits at the end.</p>
         </Section>
+
+        {/* 2b. This summer's moves */}
+        {d.rosterSeason && moves.length ? (
+          <Section className="flex flex-col gap-6">
+            <Heading title={movesTitle}
+              caption={`Who joined and who left since ${d.seasonLabel}, with each player's ${d.seasonLabel} percentile in your holes. This is context: the rankings above still use last season's team numbers, because in our backtest roster changes alone did not predict team needs better.`} />
+            <div className="grid items-start gap-8" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 460px), 1fr))" }}>
+              {([["Arrived", arrived], ["Departed", departed]] as const).map(([label, list]) => (
+                <div key={label} className="flex flex-col">
+                  <div className="label flex justify-between border-b-[3px] border-ink pb-2 text-muted">
+                    <span>{label} · {list.length}</span><span>Your holes</span>
+                  </div>
+                  {list.map((m) => (
+                    <div key={m[1]} className="flex flex-wrap items-center justify-between gap-3 border-b border-line py-3">
+                      <div className="flex min-w-0 flex-col">
+                        <span className="display text-[22px] font-extrabold tracking-[0.02em]">{m[2]}</span>
+                        <span className="font-mono text-[12px] text-muted">
+                          {label === "Arrived"
+                            ? (m[3] ? `From ${m[3]}` : m[7] === 0 ? "Rookie" : `Did not play in ${d.seasonLabel}`)
+                            : (m[3] ? `To ${m[3]}` : "Unsigned")}
+                          {m[5] ? ` · ${m[5]}` : ""}{m[4] !== null ? ` · ${m[4]} min last season` : ""}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {m[6] ? d.holes.map((k) => <Chip key={k} need={k} pct={m[6]?.[k]} />) : <span className="font-mono text-[12px] text-muted">Not enough minutes to rate</span>}
+                      </div>
+                    </div>
+                  ))}
+                  {!list.length ? <p className="py-4 text-[14px] text-muted">Nobody.</p> : null}
+                </div>
+              ))}
+            </div>
+          </Section>
+        ) : null}
 
         {/* 3. Trends */}
         <Section className="flex flex-col gap-6">

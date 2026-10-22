@@ -1,4 +1,5 @@
--- Roster Needs. $1 = season (null = latest season the team has 20+ games in), $2 = team abbreviation,
+-- Roster Needs. $1 = season (null, or a season with fewer than 20 games = latest season the team has 20+ games in),
+-- $2 = team abbreviation,
 -- $3 = side: 'offense', 'defense' or 'both' (which needs can count as holes).
 -- Holes = up to three needs on that side where the team ranks 16th or worse. Fit = a player's league percentile in each hole,
 -- weighted by the team's rank there (27th counts more than 21st), 0 to 100.
@@ -7,7 +8,7 @@
 -- Salary, age, the tabs and the stars toggle are filtered on the page, so they don't need a query each.
 with s as (
   select coalesce(
-    $1::int,
+    (select max(season) from marts.mart_team_needs where team_abbreviation = $2 and season = $1::int and games >= 20),
     (select max(season) from marts.mart_team_needs where team_abbreviation = $2 and games >= 20)
   ) as season
 ),
@@ -135,6 +136,29 @@ candidates as (
     and (t.free_agent or t.team_now is distinct from $2)
     and (t.team_now is not null or t.free_agent)
 ),
+moves as (
+  -- This summer's moves (only with today's rosters): who joined us since last season and who left.
+  -- Arrived = on our roster now, finished last season elsewhere or did not play. Departed = finished last
+  -- season with us, now somewhere else or unsigned. Percentiles are from the season shown, as context.
+  select 'arrived' as kind, st.player_id, st.player_name, st.last_team as other_team, st.last_minutes, st.position,
+         st.years_in_league
+  from status st
+  where st.team_abbreviation = $2 and st.last_team is distinct from $2
+  union all
+  select 'departed', st.player_id, st.player_name,
+         case when st.is_free_agent then null else st.team_abbreviation end, st.last_minutes, st.position,
+         st.years_in_league
+  from status st
+  where st.last_team = $2 and st.team_abbreviation is distinct from $2
+),
+move_games as (
+  -- Games last season, for minutes per game
+  select g.player_id, count(*) as games
+  from marts.fct_player_game g, s
+  where g.season = s.season and g.season_type = 'Regular Season' and g.did_play
+    and g.player_id in (select player_id from moves)
+  group by g.player_id
+),
 roster as (
   -- Our rotation. With current rosters: today's players, by last season's minutes (any team).
   -- Older seasons: the nine players with the most minutes for us that season.
@@ -187,6 +211,13 @@ select json_build_object(
       'def_rebounding', round(dreb::numeric / nullif(dreb + opp_oreb, 0), 3)::float,
       'forcing_tov', round(100.0 * opp_tov / nullif(opp_poss, 0), 1)::float
     ) order by game_number), '[]'::json) from trend where game_number >= 10),
+  -- [kind, id, name, from or to team (null = unsigned or no NBA team), minutes a game last season, position, percentiles,
+  --  years in the league (0 = rookie)]
+  'moves', (select coalesce(json_agg(json_build_array(
+      m.kind, m.player_id, m.player_name, m.other_team,
+      case when mg.games > 0 then round(m.last_minutes / mg.games, 1)::float end, m.position, k.pcts, m.years_in_league
+    ) order by m.kind, m.last_minutes desc nulls last), '[]'::json)
+    from moves m left join move_games mg using (player_id) left join skills k using (player_id)),
   'roster', (select coalesce(json_agg(json_build_object(
       'id', r.player_id, 'name', r.player_name, 'mpg', round(r.minutes / r.games, 1)::float,
       'fit', f.fit, 'pcts', k.pcts, 'position', ps.position

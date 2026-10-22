@@ -4,9 +4,9 @@ import { ChartCard } from "@/components/chart-card";
 import { Legend } from "@/components/charts/html";
 import { AgeCurveChart, SalaryQuadrantChart } from "@/components/charts/recharts";
 import { Hero } from "@/components/hero";
-import { ParamSelect } from "@/components/param-select";
+import { SeasonSwitch } from "@/components/season-switch";
 import { pageData } from "@/lib/db";
-import { parseSeason, seasonOptions, signed } from "@/lib/format";
+import { parseSeason, signed } from "@/lib/format";
 import { money } from "@/lib/insights";
 import { myTeam } from "@/lib/my-team";
 import { logoUrl, teamTheme } from "@/lib/teams";
@@ -85,7 +85,7 @@ export default async function PlayerValue({ searchParams }: { searchParams: Prom
         eyebrow={`Player Value · ${d.seasonLabel} · ${d.pricedCount} qualified players with a known salary`}
         title="Who wins more than they cost"
         watermark={mine ? { src: logoUrl(mine.id), alt: `${mine.name} logo` } : undefined}
-        controls={<ParamSelect name="season" label="Season" value={String(d.season)} options={seasonOptions(d.seasons)} />}
+        controls={<SeasonSwitch value={d.season} seasons={d.seasons} />}
         side={
           best ? (
             <div className="flex flex-[0_1_380px] flex-col gap-1 border-t-[3px] border-current pb-16 pt-4">

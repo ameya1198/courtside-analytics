@@ -4,9 +4,9 @@ import { ChartCard } from "@/components/chart-card";
 import { FactorTable, Legend, ZoneRows } from "@/components/charts/html";
 import { RollingMarginChart } from "@/components/charts/recharts";
 import { Hero, KpiRow } from "@/components/hero";
-import { ParamSelect } from "@/components/param-select";
+import { SeasonSwitch } from "@/components/season-switch";
 import { pageData } from "@/lib/db";
-import { ordinal, parseSeason, seasonOptions, signed } from "@/lib/format";
+import { ordinal, parseSeason, signed } from "@/lib/format";
 import { clutchHeadline, factorsHeadline, rolling, rollingHeadline, splits, splitsHeadline, zonesHeadline } from "@/lib/insights";
 import { myTeam } from "@/lib/my-team";
 import { logoUrl, teamTheme } from "@/lib/teams";
@@ -42,7 +42,7 @@ export default async function TeamReport({ searchParams }: { searchParams: Promi
         watermark={{ src: logoUrl(t.team_id), alt: `${t.name} logo` }}
         controls={
           <>
-            <ParamSelect name="season" label="Season" value={String(d.season)} options={seasonOptions(d.seasons)} />
+            <SeasonSwitch value={d.season} seasons={d.seasons} />
           </>
         }
       >

@@ -188,4 +188,6 @@ export type NeedsData = {
   rosterSeason: number | null;
   needs: TeamNeed[]; holes: import("./needs").NeedKey[]; trend: NeedTrendRow[];
   roster: RosterRow[]; candidates: Candidate[];
+  /** This summer's moves: [kind, id, name, from/to team (null = unsigned or no NBA team), mpg last season, position, percentiles, years in league] */
+  moves?: ["arrived" | "departed", number, string, string | null, number | null, string | null, NeedPcts | null, number | null][];
 };

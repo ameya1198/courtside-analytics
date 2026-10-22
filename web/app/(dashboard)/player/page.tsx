@@ -5,9 +5,10 @@ import { ShotHeatmap } from "@/components/charts/html";
 import { GameBarsChart, HorizontalBarChart, VolumeEfficiencyChart } from "@/components/charts/recharts";
 import { Hero, KpiRow } from "@/components/hero";
 import { ParamSelect } from "@/components/param-select";
+import { SeasonSwitch } from "@/components/season-switch";
 import { RemoteImage } from "@/components/remote-image";
 import { pageData } from "@/lib/db";
-import { dec3, one, ordinal, parseSeason, seasonOptions, shortDate, signed } from "@/lib/format";
+import { dec3, one, ordinal, parseSeason, shortDate, signed } from "@/lib/format";
 import { dfgPoints, formHeadline, money, percentileHeadline } from "@/lib/insights";
 import { myTeam } from "@/lib/my-team";
 import { headshotUrl, teamTheme } from "@/lib/teams";
@@ -87,7 +88,7 @@ export default async function PlayerProfile({ searchParams }: { searchParams: Pr
           title={picked[1]}
           controls={<>
             <ParamSelect name="player" label="Player" value={String(picked[0])} options={[...others, ...noGameOptions]} />
-            <ParamSelect name="season" label="Season" value={String(d.season)} options={seasonOptions(d.seasons)} />
+            <SeasonSwitch value={d.season} seasons={d.seasons} />
           </>}
           portrait={<RemoteImage src={headshotUrl(picked[0])} alt={picked[1]} className="h-full w-auto max-w-[44vw] object-contain object-bottom" />}
         />
@@ -134,7 +135,7 @@ export default async function PlayerProfile({ searchParams }: { searchParams: Pr
         controls={
           <>
             <ParamSelect name="player" label="Player" value={String(p.player_id)} options={options} />
-            <ParamSelect name="season" label="Season" value={String(d.season)} options={seasonOptions(d.seasons)} />
+            <SeasonSwitch value={d.season} seasons={d.seasons} />
           </>
         }
         // Large photo on wide screens (lg and up), the smaller inline one below that

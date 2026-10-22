@@ -4,10 +4,10 @@ import { ChartCard } from "@/components/chart-card";
 import { MonthHeatmap } from "@/components/charts/html";
 import { HorizontalBarChart, RestBucketsChart } from "@/components/charts/recharts";
 import { Hero } from "@/components/hero";
-import { ParamSelect } from "@/components/param-select";
+import { SeasonSwitch } from "@/components/season-switch";
 import { pageData } from "@/lib/db";
 import { myTeam } from "@/lib/my-team";
-import { ordinal, parseSeason, seasonOptions, signed } from "@/lib/format";
+import { ordinal, parseSeason, signed } from "@/lib/format";
 import { logoUrl, teamTheme } from "@/lib/teams";
 import type { RestData } from "@/lib/types";
 
@@ -50,7 +50,7 @@ export default async function RestSchedule({ searchParams }: { searchParams: Pro
         eyebrow={`${mine.city} ${mine.name} · Win rate on the second night of a back-to-back`}
         title={b2b ? pct(b2b.win_pct) : "No data"}
         watermark={{ src: logoUrl(mine.id), alt: `${mine.name} logo` }}
-        controls={<ParamSelect name="season" label="Season" value={String(d.season)} options={seasonOptions(d.seasons)} />}
+        controls={<SeasonSwitch value={d.season} seasons={d.seasons} />}
         side={
           b2b ? (
             <div className="flex max-w-[420px] flex-[1_1_300px] flex-col gap-1 border-t-[3px] border-current pb-16 pt-4">

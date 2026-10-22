@@ -4,8 +4,9 @@ import { ChartCard } from "@/components/chart-card";
 import { ZoneRows } from "@/components/charts/html";
 import { HorizontalBarChart, PairedHorizontalBarChart } from "@/components/charts/recharts";
 import { ParamSelect } from "@/components/param-select";
+import { SeasonSwitch } from "@/components/season-switch";
 import { pageData } from "@/lib/db";
-import { dec3, one, ordinal, parseSeason, seasonOptions, shortDate, signed } from "@/lib/format";
+import { dec3, one, ordinal, parseSeason, shortDate, signed } from "@/lib/format";
 import { FACTOR_META, cap, zoneName } from "@/lib/insights";
 import { myTeam } from "@/lib/my-team";
 import { colorDistance, logoUrl, onColor, opponentColor, teamColor, teamTheme } from "@/lib/teams";
@@ -99,7 +100,7 @@ export default async function MatchupScout({ searchParams }: { searchParams: Pro
           <span className="label">Matchup Scout · {d.seasonLabel}</span>
           <span className="label border-2 border-current px-3 py-2">Your team · {a.abbr}</span>
           <ParamSelect name="b" label="Opponent" value={b.abbr} options={opts} />
-          <ParamSelect name="season" label="Season" value={String(d.season)} options={seasonOptions(d.seasons)} />
+          <SeasonSwitch value={d.season} seasons={d.seasons} />
         </div>
         <div className="grid md:grid-cols-2">
           <Side t={a} bg={teamColor(a.abbr)} clutch={d.clutch?.[a.abbr]} />
