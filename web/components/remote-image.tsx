@@ -8,8 +8,9 @@ export function RemoteImage({ src, alt, className }: { src: string; alt: string;
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   if (failed) return null;
-  // eslint-disable-next-line @next/next/no-img-element
   return (
+    // Logos are SVGs on the NBA's CDN, so next/image would add nothing but a proxy hop
+    // eslint-disable-next-line @next/next/no-img-element
     <img
       src={src}
       alt={alt}

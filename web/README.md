@@ -28,6 +28,16 @@ npm run dev                  # http://localhost:3000
 
 No database handy? `DATA_MODE=demo npm run dev` renders from the snapshot in `data/demo` (default views only).
 
+## Deploy on Vercel
+
+1. Import the GitHub repo in Vercel and set **Root Directory** to `web`. The framework (Next.js) and build command are detected.
+2. Add one environment variable, `DATABASE_URL`, for Production and Preview: the same `courtside_reader` URL as `.env.local`
+   (Supabase transaction pooler, port 6543). Without it the site renders the demo snapshot.
+3. Deploy. `vercel.json` runs the functions in `cle1` (Cleveland), next to the Supabase database in us-east-2.
+
+The data refresh does not run on Vercel: stats.nba.com blocks cloud servers, so `python -m ingestion.load` and `dbt build`
+run from a home machine. Page results are cached for an hour, so new data shows up within the hour after a refresh.
+
 ## How it works
 
 - **Data**: `lib/db.ts` runs the page SQL through a read-only Postgres role on Supabase's transaction pooler and caches results for an hour.
