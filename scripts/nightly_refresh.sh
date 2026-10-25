@@ -60,6 +60,10 @@ step "$PY" -m ingestion.db --check || { osascript -e 'display notification "Coul
 for flag in --current --shots --extras --defense --rosters --preseason; do
   step "$PY" -m ingestion.load "$flag"
 done
+# Salaries and Win Shares from Basketball-Reference, this season only (about 2 minutes at its rate limit).
+# After --rosters, so this season's rookies match their NBA ids.
+export SALARY_START_SEASON=$("$PY" -c "from ingestion.load import current_season; print(current_season())")
+step "$PY" -m ingestion.load --salaries
 
 cd dbt || exit 1
 step "$DBT" deps --quiet

@@ -456,6 +456,14 @@ def load_salaries(engine, first_season: int, last_season: int) -> None:
     same download into raw.player_advanced.
     """
     index = salaries.build_name_index(nba_client.get_players().to_dict("records"))
+    # nba_api's built-in player list lags behind each draft, so this season's rookies are missing from it.
+    # The latest rosters (--rosters) have every current player with his NBA id, so they fill the gap.
+    with engine.connect() as conn:
+        rostered = conn.execute(text(
+            "select player_id, player_name from raw.team_rosters where season = (select max(season) from raw.team_rosters)"
+        )).all()
+    for player_id, name in rostered:
+        index[salaries.normalize_name(name)] = int(player_id)
     unmatched: set[str] = set()
 
     def with_ids(rows: list[dict]) -> pd.DataFrame:
