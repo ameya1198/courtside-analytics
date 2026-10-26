@@ -118,7 +118,10 @@ export default async function RestSchedule({ searchParams }: { searchParams: Pro
           </div>
           <ChartCard
             className="h-full"
-            title={b2bTotal ? `${mine.name} play ${b2bTotal} back-to-back${b2bTotal === 1 ? "" : "s"} in ${d.seasonLabel}.` : `No back-to-backs for ${mine.name} yet this season.`}
+            title={b2bTotal
+              ? `${mine.name} play ${b2bTotal} back-to-back${b2bTotal === 1 ? "" : "s"} in ${d.seasonLabel}.` +
+                (d.b2bPlayed < b2bTotal ? ` ${b2bTotal - d.b2bPlayed} ${b2bTotal - d.b2bPlayed === 1 ? "is" : "are"} still to come.` : "")
+              : `No back-to-backs for ${mine.name} in ${d.seasonLabel}.`}
             description="Back-to-backs by month. Red means more, blue fewer."
             note="Plan rest days around the red cells."
           >

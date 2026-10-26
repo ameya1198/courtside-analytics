@@ -97,6 +97,7 @@ export type RestData = {
   buckets: { rest: number; games: number; win_pct: number; margin: number; league_win_pct?: number }[];
   gaps: { abbr: string; b2b_games: number; b2b_pct: number | null; rested_pct: number | null }[];
   months: [string, number, number][];
+  b2bPlayed: number;
 };
 
 export type MatchupData = {
