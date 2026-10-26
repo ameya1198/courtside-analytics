@@ -33,26 +33,33 @@ gaps as (
          round(avg(is_win::int) filter (where not b2b), 3)::float as rested_pct
   from w group by 1
 ),
-sched as (
-  -- The full schedule (fct_schedule), so back-to-backs still to come count too. It is loaded for last
-  -- season and this one; older seasons fall back to the games played.
-  select f.game_date, t.b2b, f.is_final
+team_sched as (
+  -- The full schedule (fct_schedule), so games and back-to-backs still to come are in. It is loaded for
+  -- last season and this one; older seasons fall back to the games played.
+  select f.game_date, t.opp, t.home, t.b2b, f.is_final, t.pts, t.opp_pts, f.game_datetime_utc as tip
   from marts.fct_schedule f, s,
-       lateral (values (f.home_team, f.home_back_to_back), (f.away_team, f.away_back_to_back)) as t(abbr, b2b)
+       lateral (values
+         (f.home_team, f.away_team, true, f.home_back_to_back, f.home_score, f.away_score),
+         (f.away_team, f.home_team, false, f.away_back_to_back, f.away_score, f.home_score)
+       ) as t(abbr, opp, home, b2b, pts, opp_pts)
   where f.season = s.season and f.season_type = 'Regular Season' and t.abbr = upper($2::text)
 ),
-b2b_games as (
-  select game_date, is_final from sched where b2b
+games as (
+  select * from team_sched
   union all
-  select g.game_date, true
+  select g.game_date, g.opponent_abbreviation, g.is_home, g.is_back_to_back, true,
+         g.pts, (g.pts - g.plus_minus)::int, null::timestamptz
   from marts.fct_team_game g, s
-  where not exists (select 1 from sched)
-    and g.season = s.season and g.season_type = 'Regular Season' and g.is_back_to_back
-    and g.team_abbreviation = upper($2::text)
+  where not exists (select 1 from team_sched)
+    and g.season = s.season and g.season_type = 'Regular Season' and g.team_abbreviation = upper($2::text)
+),
+games_flagged as (
+  -- The first night of a back-to-back is the game before a second night
+  select *, coalesce(lead(b2b) over (order by game_date), false) as b2b_first from games
 ),
 months as (
   select upper($2::text) as abbr, extract(month from game_date)::int as month, count(*)::int as n
-  from b2b_games group by 2
+  from games where b2b group by 2
 )
 select json_build_object(
   'season', (select season from s),
@@ -64,5 +71,9 @@ select json_build_object(
   'buckets', (select coalesce(json_agg(b order by b.rest), '[]'::json) from buckets b),
   'gaps', (select coalesce(json_agg(g), '[]'::json) from gaps g),
   'months', (select coalesce(json_agg(json_build_array(abbr, month, n)), '[]'::json) from months),
-  'b2bPlayed', (select count(*)::int from b2b_games where is_final)
+  'b2bPlayed', (select count(*)::int from games where b2b and is_final),
+  -- [date, opponent, home, 2nd night of a back-to-back, 1st night, final, points, opponent points, tip-off (UTC)]
+  'games', (select coalesce(json_agg(json_build_array(
+              to_char(game_date, 'YYYY-MM-DD'), opp, home, b2b, b2b_first, is_final, pts, opp_pts, tip
+            ) order by game_date), '[]'::json) from games_flagged)
 ) as data

@@ -122,53 +122,6 @@ export function ZoneRows({ zones, compare, abbr, compareLabel }: { zones: Zone[]
   );
 }
 
-const MONTHS: [number, string][] = [[10, "Oct"], [11, "Nov"], [12, "Dec"], [1, "Jan"], [2, "Feb"], [3, "Mar"], [4, "Apr"]];
-
-/** Back-to-backs per team per month, on the heat scale (red = more). */
-export function MonthHeatmap({ months }: { months: [string, number, number][] }) {
-  const teams = new Map<string, Map<number, number>>();
-  for (const [t, m, n] of months) {
-    if (!teams.has(t)) teams.set(t, new Map());
-    teams.get(t)!.set(m, n);
-  }
-  const rows = [...teams.entries()]
-    .map(([t, m]) => ({ t, m, total: [...m.values()].reduce((a, b) => a + b, 0) }))
-    .sort((a, b) => b.total - a.total || a.t.localeCompare(b.t));
-  const top = Math.max(1, ...months.map((m) => m[2]));
-  return (
-    <div className="flex flex-col">
-      <div className="label grid grid-cols-[52px_repeat(7,minmax(0,1fr))_44px] gap-[3px] border-b-[3px] border-ink pb-2 text-center text-muted">
-        <span className="text-left">Team</span>
-        {MONTHS.map(([, l]) => <span key={l}>{l}</span>)}
-        <span>All</span>
-      </div>
-      {rows.map((r) => (
-        <div key={r.t} className="grid h-[30px] grid-cols-[52px_repeat(7,minmax(0,1fr))_44px] items-center gap-[3px]">
-          <span className="display text-[19px] font-extrabold tracking-[0.04em]">{r.t}</span>
-          {MONTHS.map(([m]) => {
-            const n = r.m.get(m) ?? 0;
-            const share = n / top;
-            return (
-              <div
-                key={m}
-                className="flex h-[26px] items-center justify-center font-mono text-[12px] font-medium"
-                style={{
-                  background: n === 0 ? "var(--soft)" : heatColor(share),
-                  color: n > 0 && (share < 0.15 || share > 0.85) ? "#FFFFFF" : "var(--ink)",
-                }}
-              >
-                {n}
-              </div>
-            );
-          })}
-          <span className="text-center font-mono text-[13px] font-medium">{r.total}</span>
-        </div>
-      ))}
-      <HeatLegend low="Fewer back-to-backs" high="More" />
-    </div>
-  );
-}
-
 /** Half-court heatmap of where a player shoots from, built from 5-foot squares and softened with a blur. */
 // The usual heatmap scale, cool to hot: blue (few) through light blue, pale yellow and orange to red (most).
 const HEAT_STOPS = ["#2C7BB6", "#ABD9E9", "#FFFFBF", "#FDAE61", "#D7191C"];

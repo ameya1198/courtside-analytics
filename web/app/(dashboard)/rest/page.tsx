@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Empty, Heading, Section, Wrap } from "@/components/blocks";
 import { ChartCard } from "@/components/chart-card";
-import { MonthHeatmap } from "@/components/charts/html";
+import { ScheduleCalendar } from "@/components/charts/schedule-calendar";
 import { HorizontalBarChart, RestBucketsChart } from "@/components/charts/recharts";
 import { Hero } from "@/components/hero";
 import { SeasonSwitch } from "@/components/season-switch";
@@ -97,18 +97,24 @@ export default async function RestSchedule({ searchParams }: { searchParams: Pro
                 legend={[
                   { label: mine.abbr, color: mineGap.gap >= 0 ? "var(--warn)" : "var(--accent)" },
                   { label: "League average", color: "var(--ink)" },
+                  { label: "Other teams", color: "var(--panel-dot)" },
                   { label: "No difference", color: "var(--panel-muted)", kind: "dashed" },
                 ]}
                 note="Right of the line: worse on the second night. A single team's gap is a signal, not proof."
               >
                 <HorizontalBarChart
                   name="Gap" icon="scale" refLine={0}
-                  domain={(() => { const m = Math.max(10, Math.abs(mineGap.gap), Math.abs(leagueGap)); return [-m, m] as [number, number]; })()}
+                  rowHeight={26} labelSize={15} categoryWidth={52} maxHeight={420} focusKey={mine.abbr}
+                  domain={(() => { const m = Math.max(10, ...gaps.map((g) => Math.abs(g.gap))); return [-m, m] as [number, number]; })()}
                   data={[
-                    { key: mine.abbr, label: mine.abbr, value: mineGap.gap, valueText: signed(mineGap.gap), fill: mineGap.gap >= 0 ? "var(--warn)" : "var(--accent)",
-                      tips: winTips(mineGap.b2b_pct!, mineGap.rested_pct!) },
-                    { key: "league", label: "LGE", value: leagueGap, valueText: signed(leagueGap), fill: "var(--ink)",
-                      tips: winTips(avg((g) => g.b2b_pct!), avg((g) => g.rested_pct!)) },
+                    // Every team, biggest drop first, with the league average in its place
+                    ...[...gaps, { abbr: "LGE", gap: leagueGap, b2b_pct: avg((g) => g.b2b_pct!), rested_pct: avg((g) => g.rested_pct!), b2b_games: 0 }]
+                      .sort((a, b) => b.gap - a.gap)
+                      .map((g) => ({
+                        key: g.abbr, label: g.abbr, value: g.gap, valueText: signed(g.gap),
+                        fill: g.abbr === mine.abbr ? (g.gap >= 0 ? "var(--warn)" : "var(--accent)") : g.abbr === "LGE" ? "var(--ink)" : "var(--panel-dot)",
+                        tips: winTips(g.b2b_pct!, g.rested_pct!),
+                      })),
                   ]}
                 />
               </ChartCard>
@@ -122,10 +128,10 @@ export default async function RestSchedule({ searchParams }: { searchParams: Pro
               ? `${mine.name} play ${b2bTotal} back-to-back${b2bTotal === 1 ? "" : "s"} in ${d.seasonLabel}.` +
                 (d.b2bPlayed < b2bTotal ? ` ${b2bTotal - d.b2bPlayed} ${b2bTotal - d.b2bPlayed === 1 ? "is" : "are"} still to come.` : "")
               : `No back-to-backs for ${mine.name} in ${d.seasonLabel}.`}
-            description="Back-to-backs by month. Red means more, blue fewer."
+            description="Back-to-backs by month. Click a month to zoom into its games."
             note="Plan rest days around the red cells."
           >
-            <MonthHeatmap months={months} />
+            <ScheduleCalendar abbr={mine.abbr} months={d.months} games={d.games} />
           </ChartCard>
         </Section>
       </Wrap>

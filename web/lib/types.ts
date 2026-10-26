@@ -98,7 +98,10 @@ export type RestData = {
   gaps: { abbr: string; b2b_games: number; b2b_pct: number | null; rested_pct: number | null }[];
   months: [string, number, number][];
   b2bPlayed: number;
+  games: ScheduleGame[];
 };
+/** [date, opponent, home, 2nd night of a back-to-back, 1st night, final, points, opponent points, tip-off (UTC ISO)] */
+export type ScheduleGame = [string, string, boolean, boolean, boolean, boolean, number | null, number | null, string | null];
 
 export type MatchupData = {
   season: number; seasonLabel: string; seasons: number[];
